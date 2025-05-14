@@ -2,13 +2,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingDown, TrendingUp, PiggyBank } from 'lucide-react';
+import { DollarSign, TrendingDown, TrendingUp, PiggyBank, Lightbulb } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { useData } from '@/contexts/data-context';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import { generateFinancialInsight, type FinancialInsightInput } from '@/ai/flows/financial-insight-flow';
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
@@ -32,12 +35,15 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function DashboardPage() {
-  const { totalRevenue, totalExpenses, totalProfit, incomes, expenses, loading } = useData();
+  const { totalRevenue, totalExpenses, totalProfit, incomes, expenses, loading: dataLoading } = useData();
   const [chartData, setChartData] = useState<any[]>([]);
+  const [financialInsight, setFinancialInsight] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState<boolean>(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (loading) {
-      setChartData([]); // Clear data or set specific loading state for chart if needed
+    if (dataLoading) {
+      setChartData([]); 
       return;
     }
 
@@ -64,13 +70,48 @@ export default function DashboardPage() {
 
       const dataArray = Object.values(aggregatedData)
         .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
-        .slice(-12); // Show up to last 12 months
+        .slice(-12); 
 
       setChartData(dataArray);
     };
 
     processDataForChart();
-  }, [incomes, expenses, loading]);
+  }, [incomes, expenses, dataLoading]);
+
+  useEffect(() => {
+    if (!dataLoading && (totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0)) {
+      const fetchInsight = async () => {
+        setInsightLoading(true);
+        setInsightError(null);
+        try {
+          // Use the last 3-6 months of chartData for trends
+          const recentMonthlyData = chartData.slice(-6).map(cd => ({
+            name: cd.name,
+            income: cd.income,
+            expenses: cd.expenses
+          }));
+
+          const input: FinancialInsightInput = {
+            totalRevenue,
+            totalExpenses,
+            totalProfit,
+            monthlyData: recentMonthlyData,
+          };
+          const result = await generateFinancialInsight(input);
+          setFinancialInsight(result.insight);
+        } catch (error) {
+          console.error("Failed to generate financial insight:", error);
+          setInsightError("Could not generate financial insight at this time. Please try again later.");
+        } finally {
+          setInsightLoading(false);
+        }
+      };
+      fetchInsight();
+    } else if (!dataLoading && totalRevenue === 0 && totalExpenses === 0 && financialInsight === null) {
+        // Set a default message if there's no data and no insight has been loaded yet
+        setFinancialInsight("Add some income and expenses to get your first financial insight!");
+    }
+  }, [dataLoading, totalRevenue, totalExpenses, totalProfit, chartData, incomes, expenses, financialInsight ]); // Added financialInsight to deps to avoid re-fetching if already loaded
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
 
@@ -80,7 +121,6 @@ export default function DashboardPage() {
     if (Math.abs(value) >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value.toFixed(0)}`;
   };
-
 
   return (
     <div className="flex flex-col gap-6">
@@ -106,6 +146,32 @@ export default function DashboardPage() {
           valueColor={cn(profitColor)}
         />
       </div>
+
+      <div className="mt-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center space-x-2 pb-2">
+            <Lightbulb className="h-6 w-6 text-primary" />
+            <CardTitle>AI Financial Insight</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {insightLoading ? (
+              <>
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2" />
+              </>
+            ) : insightError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{insightError}</AlertDescription>
+              </Alert>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {financialInsight || "No insights available yet. Add more data!"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
       <div className="mt-8">
         <Card>
           <CardHeader>
@@ -113,7 +179,7 @@ export default function DashboardPage() {
             <CardDescription>Income vs. Expenses for the last 12 months.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {loading ? (
+            {dataLoading ? (
               <Skeleton className="h-[350px] w-full" />
             ) : chartData.length > 0 ? (
               <ChartContainer config={chartConfig} className="min-h-[350px] w-full">
@@ -135,22 +201,23 @@ export default function DashboardPage() {
                     cursor={false}
                     content={<ChartTooltipContent
                       labelFormatter={(label, payload) => {
-                        // Find the full yearMonth from payload if needed for more context
                         const item = payload?.[0]?.payload;
                         if (item && item.yearMonth) {
                           try {
-                            const date = new Date(item.yearMonth + "-01"); // Create a valid date
+                            const date = new Date(item.yearMonth + "-01T00:00:00"); // Ensure parsing as local/UTC consistently
                             return format(date, "MMM yyyy");
                           } catch (e) {
-                            return item.name; // fallback
+                            return item.name; 
                           }
                         }
                         return label;
                       }}
                       formatter={(value, name) => (
                         <>
-                          <span className="font-medium">{name.charAt(0).toUpperCase() + name.slice(1)}:</span>
-                          {typeof value === 'number' ? value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : value}
+                          <span className="font-medium" style={{ color: name === 'income' ? 'var(--color-income)' : 'var(--color-expenses)'}}>
+                            {name.charAt(0).toUpperCase() + name.slice(1)}:
+                          </span>
+                          {' '}{typeof value === 'number' ? value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : value}
                         </>
                       )}
                     />}
@@ -174,3 +241,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
