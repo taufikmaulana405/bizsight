@@ -82,7 +82,7 @@ export default function DashboardPage() {
     const hasFinancialActivity = totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0;
 
     if (!dataLoading && hasFinancialActivity) {
-      if (!insightLoading) { // Prevent re-entrant calls if already loading
+      if (!insightLoading) { 
         const fetchInsight = async () => {
           setInsightLoading(true);
           setInsightError(null);
@@ -115,9 +115,12 @@ export default function DashboardPage() {
         fetchInsight();
       }
     } else if (!dataLoading && !hasFinancialActivity && financialInsight === null) {
+        // Set initial message only if no insight has ever been loaded and there's no activity
         setFinancialInsight("Add some income and expenses to get your first financial insight!");
     }
-  }, [dataLoading, totalRevenue, totalExpenses, totalProfit, chartData, incomes, expenses, financialInsight, insightLoading ]);
+  // Removed financialInsight from dependencies to prevent re-fetch when insight state itself changes.
+  // insightLoading is included to ensure the check `if (!insightLoading)` works as intended after an attempt.
+  }, [dataLoading, totalRevenue, totalExpenses, totalProfit, chartData, incomes, expenses, insightLoading ]);
 
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
