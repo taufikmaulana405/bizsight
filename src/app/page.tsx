@@ -79,39 +79,46 @@ export default function DashboardPage() {
   }, [incomes, expenses, dataLoading]);
 
   useEffect(() => {
-    if (!dataLoading && (totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0)) {
-      const fetchInsight = async () => {
-        setInsightLoading(true);
-        setInsightError(null);
-        try {
-          // Use the last 3-6 months of chartData for trends
-          const recentMonthlyData = chartData.slice(-6).map(cd => ({
-            name: cd.name,
-            income: cd.income,
-            expenses: cd.expenses
-          }));
+    const hasFinancialActivity = totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0;
 
-          const input: FinancialInsightInput = {
-            totalRevenue,
-            totalExpenses,
-            totalProfit,
-            monthlyData: recentMonthlyData,
-          };
-          const result = await generateFinancialInsight(input);
-          setFinancialInsight(result.insight);
-        } catch (error) {
-          console.error("Failed to generate financial insight:", error);
-          setInsightError("Could not generate financial insight at this time. Please try again later.");
-        } finally {
-          setInsightLoading(false);
-        }
-      };
-      fetchInsight();
-    } else if (!dataLoading && totalRevenue === 0 && totalExpenses === 0 && financialInsight === null) {
-        // Set a default message if there's no data and no insight has been loaded yet
+    if (!dataLoading && hasFinancialActivity) {
+      if (!insightLoading) { // Prevent re-entrant calls if already loading
+        const fetchInsight = async () => {
+          setInsightLoading(true);
+          setInsightError(null);
+          try {
+            const recentMonthlyData = chartData.slice(-6).map(cd => ({
+              name: cd.name,
+              income: cd.income,
+              expenses: cd.expenses
+            }));
+
+            const input: FinancialInsightInput = {
+              totalRevenue,
+              totalExpenses,
+              totalProfit,
+              monthlyData: recentMonthlyData,
+            };
+            const result = await generateFinancialInsight(input);
+            setFinancialInsight(result.insight);
+          } catch (error: any) {
+            console.error("Failed to generate financial insight:", error);
+            if (error.toString().includes("429") || (error.message && error.message.includes("429"))) {
+              setInsightError("AI insight generation is currently rate-limited. Please try again in a few moments. If this persists, consider upgrading your AI plan.");
+            } else {
+              setInsightError("Could not generate financial insight at this time.");
+            }
+          } finally {
+            setInsightLoading(false);
+          }
+        };
+        fetchInsight();
+      }
+    } else if (!dataLoading && !hasFinancialActivity && financialInsight === null) {
         setFinancialInsight("Add some income and expenses to get your first financial insight!");
     }
-  }, [dataLoading, totalRevenue, totalExpenses, totalProfit, chartData, incomes, expenses, financialInsight ]); // Added financialInsight to deps to avoid re-fetching if already loaded
+  }, [dataLoading, totalRevenue, totalExpenses, totalProfit, chartData, incomes, expenses, financialInsight, insightLoading ]);
+
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
 
@@ -204,7 +211,7 @@ export default function DashboardPage() {
                         const item = payload?.[0]?.payload;
                         if (item && item.yearMonth) {
                           try {
-                            const date = new Date(item.yearMonth + "-01T00:00:00"); // Ensure parsing as local/UTC consistently
+                            const date = new Date(item.yearMonth + "-01T00:00:00"); 
                             return format(date, "MMM yyyy");
                           } catch (e) {
                             return item.name; 
