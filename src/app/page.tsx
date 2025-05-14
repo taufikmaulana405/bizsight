@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DollarSign, TrendingDown, TrendingUp, PiggyBank, Lightbulb } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { useData } from '@/contexts/data-context';
@@ -11,7 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { generateFinancialInsight, type FinancialInsightInput } from '@/ai/flows/financial-insight-flow';
+import { generateFinancialInsight, type FinancialInsightInput, type FinancialInsightOutput } from '@/ai/flows/financial-insight-flow';
+import type { Income, Expense } from '@/lib/types';
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
@@ -33,6 +34,35 @@ const chartConfig = {
     color: "hsl(var(--chart-1))", // Orangey-red
   },
 } satisfies ChartConfig;
+
+// Helper function to aggregate monthly data for insights
+const getMonthlyDataForInsightAggregator = (
+  currentIncomes: Income[],
+  currentExpenses: Expense[]
+): Array<{ name: string; income: number; expenses: number }> => {
+  const monthlyAggregatedData: { [key: string]: { name: string; income: number; expenses: number; yearMonth: string } } = {};
+  currentIncomes.forEach(income => {
+    const yearMonth = format(income.date, 'yyyy-MM');
+    const monthDisplay = format(income.date, 'MMM');
+    if (!monthlyAggregatedData[yearMonth]) {
+      monthlyAggregatedData[yearMonth] = { name: monthDisplay, income: 0, expenses: 0, yearMonth };
+    }
+    monthlyAggregatedData[yearMonth].income += income.amount;
+  });
+  currentExpenses.forEach(expense => {
+    const yearMonth = format(expense.date, 'yyyy-MM');
+    const monthDisplay = format(expense.date, 'MMM');
+    if (!monthlyAggregatedData[yearMonth]) {
+      monthlyAggregatedData[yearMonth] = { name: monthDisplay, income: 0, expenses: 0, yearMonth };
+    }
+    monthlyAggregatedData[yearMonth].expenses += expense.amount;
+  });
+  return Object.values(monthlyAggregatedData)
+    .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
+    .slice(-6) // Get last 6 months for insight
+    .map(cd => ({ name: cd.name, income: cd.income, expenses: cd.expenses })); // Map to the structure expected by the flow
+};
+
 
 export default function DashboardPage() {
   const { totalRevenue, totalExpenses, totalProfit, incomes, expenses, loading: dataLoading } = useData();
@@ -78,28 +108,39 @@ export default function DashboardPage() {
     processDataForChart();
   }, [incomes, expenses, dataLoading]);
 
+  // Create a stable key representing the data used for insight generation
+  const insightInputKey = useMemo(() => {
+    if (dataLoading) return null; // Don't compute if core data is loading
+    const monthlyData = getMonthlyDataForInsightAggregator(incomes, expenses);
+    return JSON.stringify({
+      totalRevenue,
+      totalExpenses,
+      totalProfit,
+      monthlyData,
+    });
+  }, [totalRevenue, totalExpenses, totalProfit, incomes, expenses, dataLoading]);
+
+
   useEffect(() => {
     const hasFinancialActivity = totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0;
 
-    if (!dataLoading && hasFinancialActivity) {
+    if (!dataLoading && hasFinancialActivity && insightInputKey) {
       if (!insightLoading) { 
         const fetchInsight = async () => {
           setInsightLoading(true);
           setInsightError(null);
           try {
-            const recentMonthlyData = chartData.slice(-6).map(cd => ({
-              name: cd.name,
-              income: cd.income,
-              expenses: cd.expenses
-            }));
+            // Re-derive monthlyData for the flow using the helper.
+            // This ensures we use the same logic as for insightInputKey.
+            const monthlyDataForFlow = getMonthlyDataForInsightAggregator(incomes, expenses);
 
             const input: FinancialInsightInput = {
               totalRevenue,
               totalExpenses,
               totalProfit,
-              monthlyData: recentMonthlyData,
+              monthlyData: monthlyDataForFlow,
             };
-            const result = await generateFinancialInsight(input);
+            const result: FinancialInsightOutput = await generateFinancialInsight(input);
             setFinancialInsight(result.insight);
           } catch (error: any) {
             console.error("Failed to generate financial insight:", error);
@@ -114,11 +155,14 @@ export default function DashboardPage() {
         };
         fetchInsight();
       }
-    } else if (!dataLoading && !hasFinancialActivity && financialInsight === null) {
-        setFinancialInsight("Add some income and expenses to get your first financial insight!");
+    } else if (!dataLoading && !hasFinancialActivity) {
+      const defaultMessage = "Add some income and expenses to get your first financial insight!";
+      if (financialInsight !== defaultMessage || insightError) {
+        setFinancialInsight(defaultMessage);
+        setInsightError(null); 
+      }
     }
-  // Dependencies refined: removed insightLoading, incomes, and expenses (as they are covered by derived states)
-  }, [dataLoading, totalRevenue, totalExpenses, totalProfit, chartData]);
+  }, [dataLoading, insightInputKey]); // Depend on dataLoading and the stable insightInputKey
 
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
@@ -223,7 +267,7 @@ export default function DashboardPage() {
                       formatter={(value, name) => (
                         <>
                           <span className="font-medium" style={{ color: name === 'income' ? 'var(--color-income)' : 'var(--color-expenses)'}}>
-                            {name.charAt(0).toUpperCase() + name.slice(1)}:
+                            {String(name).charAt(0).toUpperCase() + String(name).slice(1)}:
                           </span>
                           {' '}{typeof value === 'number' ? value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : value}
                         </>
