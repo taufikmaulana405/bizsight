@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en"> {/* Removed GeistSans.variable */}
+    <html lang="en">
       <body className="antialiased">
         <DataProvider>
           <AppShell>
