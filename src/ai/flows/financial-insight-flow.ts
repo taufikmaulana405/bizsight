@@ -15,6 +15,7 @@ const MonthlyDataSchema = z.object({
   name: z.string().describe('Month name (e.g., "Jan", "Feb")'),
   income: z.number().describe('Total income for the month'),
   expenses: z.number().describe('Total expenses for the month'),
+  // Profit will be calculated in the flow, not part of the input schema for monthlyData
 });
 
 const FinancialInsightInputSchema = z.object({
@@ -42,7 +43,13 @@ export async function generateFinancialInsight(
 
 const prompt = ai.definePrompt({
   name: 'financialInsightPrompt',
-  input: {schema: FinancialInsightInputSchema},
+  input: {schema: FinancialInsightInputSchema.extend({
+    // We augment monthlyData with profit in the flow, so the prompt can expect it.
+    // This part of the schema is for the data *as sent to the prompt*, not the flow's external input.
+    monthlyData: z.array(MonthlyDataSchema.extend({
+      profit: z.number().describe('Calculated profit for the month (income - expenses)')
+    })).optional(),
+  })},
   output: {schema: FinancialInsightOutputSchema},
   prompt: `You are a helpful financial assistant for a small business owner using the BizSight app.
 Analyze the following financial data and provide a concise (1-3 sentences) insight or observation.
@@ -57,7 +64,7 @@ Financial Summary:
 {{#if monthlyData.length}}
 Recent Monthly Performance:
 {{#each monthlyData}}
-- {{this.name}}: Income: \${{this.income}}, Expenses: \${{this.expenses}}, Profit: \${{math this.income '-' this.expenses}}
+- {{this.name}}: Income: \${{this.income}}, Expenses: \${{this.expenses}}, Profit: \${{this.profit}}
 {{/each}}
 {{else}}
 (No recent monthly data provided for trend analysis)
@@ -83,11 +90,25 @@ const financialInsightFlow = ai.defineFlow(
     if (input.totalRevenue === 0 && input.totalExpenses === 0 && input.totalProfit === 0 && (!input.monthlyData || input.monthlyData.length === 0)) {
       return { insight: "It looks like you're just getting started or haven't entered much financial data yet. Add some income and expenses to start seeing valuable insights!" };
     }
+
+    // Create a mutable copy of the input to process monthlyData
+    const processedInput = { ...input };
     
-    const {output} = await prompt(input);
+    if (processedInput.monthlyData && processedInput.monthlyData.length > 0) {
+      // Augment monthlyData with profit
+      // Need to cast to 'any' to add the profit property for the prompt,
+      // or define an intermediate type. Casting is simpler here as prompt input schema is extended.
+      processedInput.monthlyData = processedInput.monthlyData.map(month => ({
+        ...month,
+        profit: month.income - month.expenses,
+      })) as any;
+    }
+    
+    const {output} = await prompt(processedInput);
     if (!output) {
         throw new Error("Failed to generate financial insight. The AI model did not return an output.");
     }
     return output;
   }
 );
+
