@@ -6,13 +6,12 @@ import { getFirestore } from "firebase/firestore";
 // Your web app's Firebase configuration
 // IMPORTANT: Replace with your actual Firebase project configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID" // Optional
+  apiKey: "AIzaSyBmN_RKuibnDbYpc-nJLIURKu32q9oMqSY",
+  authDomain: "bizsight-6ovt7.firebaseapp.com",
+  projectId: "bizsight-6ovt7",
+  storageBucket: "bizsight-6ovt7.firebasestorage.app",
+  messagingSenderId: "914265862044",
+  appId: "1:914265862044:web:c4705ab6ad6042f44a6259"
 };
 
 // Initialize Firebase
