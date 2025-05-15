@@ -1,19 +1,162 @@
+
+"use client";
+
+import React, { useState } from 'react';
 import { IncomeForm } from "@/components/forms/income-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useData } from '@/contexts/data-context';
+import { useToast } from "@/hooks/use-toast";
+import type { Income } from '@/lib/types';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"; // Removed AlertDialogTrigger as we'll control open state
+import { Pencil, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default function AddIncomePage() {
+export default function IncomePage() {
+  const { incomes, deleteIncome, loading } = useData();
+  const { toast } = useToast();
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
+  const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const handleEdit = (income: Income) => {
+    setEditingIncome(income);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to form for editing
+  };
+
+  const handleDeleteInitiate = (income: Income) => {
+    setIncomeToDelete(income);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (incomeToDelete) {
+      try {
+        await deleteIncome(incomeToDelete.id);
+        toast({
+          title: "Income Deleted",
+          description: `${incomeToDelete.source} was successfully deleted.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Could not delete income. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIncomeToDelete(null);
+        setIsDeleteDialogOpen(false);
+      }
+    }
+  };
+
+  const handleFormFinish = () => {
+    setEditingIncome(null); // Clear editing state, form will reset to "add new"
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold tracking-tight">Add Income</h1>
+    <div className="flex flex-col gap-8">
+      <h1 className="text-3xl font-bold tracking-tight">Income Management</h1>
+      
       <Card>
         <CardHeader>
-          <CardTitle>New Income Entry</CardTitle>
-          <CardDescription>Log a new source of revenue for your business.</CardDescription>
+          <CardTitle>{editingIncome ? "Edit Income Entry" : "New Income Entry"}</CardTitle>
+          <CardDescription>
+            {editingIncome ? `Update the details for "${editingIncome.source}".` : "Log a new source of revenue for your business."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <IncomeForm />
+          <IncomeForm incomeToEdit={editingIncome} onFinish={handleFormFinish} />
         </CardContent>
       </Card>
+
+      <Separator className="my-4" />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Existing Incomes</CardTitle>
+          <CardDescription>View, edit, or delete your recorded income entries.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : incomes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No income entries recorded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {incomes.map((income) => (
+                  <TableRow key={income.id}>
+                    <TableCell className="font-medium">{income.source}</TableCell>
+                    <TableCell className="text-right">
+                      {income.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    </TableCell>
+                    <TableCell>{format(new Date(income.date), "PPP")}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="outline" size="icon" onClick={() => handleEdit(income)} aria-label="Edit income">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => handleDeleteInitiate(income)} aria-label="Delete income">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the income entry for <span className="font-semibold">{incomeToDelete?.source}</span>
+              amounting to <span className="font-semibold">{incomeToDelete?.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+              Yes, delete it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

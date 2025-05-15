@@ -12,14 +12,26 @@ import {
   Timestamp,
   query,
   orderBy,
-  onSnapshot
+  onSnapshot,
+  doc, // Added for update/delete
+  updateDoc, // Added for update
+  deleteDoc // Added for delete
 } from 'firebase/firestore';
+
+// Define the shape of income data for forms (matches IncomeFormValues)
+export interface IncomeFormData {
+  source: string;
+  amount: number;
+  date: Date;
+}
 
 interface DataContextType {
   incomes: Income[];
   expenses: Expense[];
   appointments: Appointment[];
-  addIncome: (income: Omit<Income, 'id'>) => Promise<void>;
+  addIncome: (income: IncomeFormData) => Promise<void>;
+  updateIncome: (id: string, incomeData: IncomeFormData) => Promise<void>;
+  deleteIncome: (id: string) => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   addAppointment: (appointment: Omit<Appointment, 'id'>) => Promise<void>;
   totalRevenue: number;
@@ -36,16 +48,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Fetch initial data from Firestore
   useEffect(() => {
     setLoading(true);
     const incomesCol = collection(db, 'incomes');
     const expensesCol = collection(db, 'expenses');
     const appointmentsCol = collection(db, 'appointments');
 
+    const qIncomes = query(incomesCol, orderBy("date", "desc")); // Order incomes, newest first
+    const qExpenses = query(expensesCol, orderBy("date", "desc"));
     const qAppointments = query(appointmentsCol, orderBy("date", "asc"));
 
-    const unsubIncomes = onSnapshot(incomesCol, (snapshot) => {
+    const unsubIncomes = onSnapshot(qIncomes, (snapshot) => {
       setIncomes(snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -53,7 +66,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Income)));
     });
 
-    const unsubExpenses = onSnapshot(expensesCol, (snapshot) => {
+    const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
       setExpenses(snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -69,12 +82,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Appointment)));
     });
     
-    // Set loading to false after initial fetch attempt (even if empty)
-    // We use a combined check or a timeout if preferred for more complex scenarios
-    // For simplicity, let's assume data loads fast or components handle empty states.
     Promise.all([
-      getDocs(incomesCol), 
-      getDocs(expensesCol), 
+      getDocs(qIncomes), 
+      getDocs(qExpenses), 
       getDocs(qAppointments)
     ]).then(() => {
       setLoading(false);
@@ -83,7 +93,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(false);
     });
 
-    // Cleanup function to unsubscribe from snapshot listeners
     return () => {
       unsubIncomes();
       unsubExpenses();
@@ -91,15 +100,37 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const addIncome = useCallback(async (income: Omit<Income, 'id'>) => {
+  const addIncome = useCallback(async (income: IncomeFormData) => {
     try {
       await addDoc(collection(db, 'incomes'), {
         ...income,
         date: Timestamp.fromDate(income.date),
       });
-      // No need to manually setIncomes, onSnapshot will update
     } catch (error) {
       console.error("Error adding income: ", error);
+    }
+  }, []);
+
+  const updateIncome = useCallback(async (id: string, incomeData: IncomeFormData) => {
+    try {
+      const incomeDocRef = doc(db, 'incomes', id);
+      await updateDoc(incomeDocRef, {
+        ...incomeData,
+        date: Timestamp.fromDate(incomeData.date),
+      });
+    } catch (error) {
+      console.error("Error updating income: ", error);
+      // Optionally, re-throw or handle UI feedback here
+    }
+  }, []);
+
+  const deleteIncome = useCallback(async (id: string) => {
+    try {
+      const incomeDocRef = doc(db, 'incomes', id);
+      await deleteDoc(incomeDocRef);
+    } catch (error) {
+      console.error("Error deleting income: ", error);
+      // Optionally, re-throw or handle UI feedback here
     }
   }, []);
 
@@ -129,23 +160,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const totalExpenses = useMemo(() => expenses.reduce((sum, expense) => sum + expense.amount, 0), [expenses]);
   const totalProfit = useMemo(() => totalRevenue - totalExpenses, [totalRevenue, totalExpenses]);
 
-  // Remove or comment out the previous sample data useEffect
-  // React.useEffect(() => {
-  //   addIncome({ source: 'Client A Project', amount: 1200, date: new Date(2024, 6, 15) });
-  //   addIncome({ source: 'Consulting Gig', amount: 800, date: new Date(2024, 6, 22) });
-  //   addExpense({ category: 'Software Subscription', amount: 50, date: new Date(2024, 6, 1) });
-  //   addExpense({ category: 'Office Supplies', amount: 75, date: new Date(2024, 6, 5) });
-  //   addAppointment({ title: 'Meeting with Client B', date: new Date(2024, 7, 5, 10, 0), description: 'Discuss project milestones.' });
-  //   addAppointment({ title: 'Team Sync-up', date: new Date(2024, 7, 7, 14, 0), description: 'Weekly team meeting.' });
-  // }, [addIncome, addExpense, addAppointment]);
-
-
   return (
     <DataContext.Provider value={{ 
       incomes, 
       expenses, 
       appointments, 
-      addIncome, 
+      addIncome,
+      updateIncome,
+      deleteIncome,
       addExpense, 
       addAppointment,
       totalRevenue,
