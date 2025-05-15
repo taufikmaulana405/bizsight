@@ -1,0 +1,19 @@
+name: push to pterodactyl
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+    restart-pterodactyl:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Execute Pterodactyl Power Action
+              uses: D3OXY/pterodactyl-power@V1
+              with:
+                  PANEL_URL: ${{ secrets.PTERO_URL }}
+                  API_KEY: ${{ secrets.PTERO_USER_KEY }}
+                  SERVER_ID: ${{ secrets.PTERO_SERVER_UUID_SHORT }}
+                  POWER_ACTION: "RESTART" # You can change this to "STOP," "RESTART," or "KILL" as needed
