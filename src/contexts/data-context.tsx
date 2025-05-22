@@ -13,14 +13,21 @@ import {
   query,
   orderBy,
   onSnapshot,
-  doc, // Added for update/delete
-  updateDoc, // Added for update
-  deleteDoc // Added for delete
+  doc,
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 
 // Define the shape of income data for forms (matches IncomeFormValues)
 export interface IncomeFormData {
   source: string;
+  amount: number;
+  date: Date;
+}
+
+// Define the shape of expense data for forms
+export interface ExpenseFormData {
+  category: string;
   amount: number;
   date: Date;
 }
@@ -32,7 +39,9 @@ interface DataContextType {
   addIncome: (income: IncomeFormData) => Promise<void>;
   updateIncome: (id: string, incomeData: IncomeFormData) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
-  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  addExpense: (expense: ExpenseFormData) => Promise<void>;
+  updateExpense: (id: string, expenseData: ExpenseFormData) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
   addAppointment: (appointment: Omit<Appointment, 'id'>) => Promise<void>;
   totalRevenue: number;
   totalExpenses: number;
@@ -54,7 +63,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const expensesCol = collection(db, 'expenses');
     const appointmentsCol = collection(db, 'appointments');
 
-    const qIncomes = query(incomesCol, orderBy("date", "desc")); // Order incomes, newest first
+    const qIncomes = query(incomesCol, orderBy("date", "desc"));
     const qExpenses = query(expensesCol, orderBy("date", "desc"));
     const qAppointments = query(appointmentsCol, orderBy("date", "asc"));
 
@@ -108,6 +117,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     } catch (error) {
       console.error("Error adding income: ", error);
+      throw error;
     }
   }, []);
 
@@ -120,7 +130,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     } catch (error) {
       console.error("Error updating income: ", error);
-      // Optionally, re-throw or handle UI feedback here
+      throw error;
     }
   }, []);
 
@@ -130,11 +140,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await deleteDoc(incomeDocRef);
     } catch (error) {
       console.error("Error deleting income: ", error);
-      // Optionally, re-throw or handle UI feedback here
+      throw error;
     }
   }, []);
 
-  const addExpense = useCallback(async (expense: Omit<Expense, 'id'>) => {
+  const addExpense = useCallback(async (expense: ExpenseFormData) => {
     try {
       await addDoc(collection(db, 'expenses'), {
         ...expense,
@@ -142,6 +152,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     } catch (error) {
       console.error("Error adding expense: ", error);
+      throw error;
+    }
+  }, []);
+
+  const updateExpense = useCallback(async (id: string, expenseData: ExpenseFormData) => {
+    try {
+      const expenseDocRef = doc(db, 'expenses', id);
+      await updateDoc(expenseDocRef, {
+        ...expenseData,
+        date: Timestamp.fromDate(expenseData.date),
+      });
+    } catch (error) {
+      console.error("Error updating expense: ", error);
+      throw error;
+    }
+  }, []);
+
+  const deleteExpense = useCallback(async (id: string) => {
+    try {
+      const expenseDocRef = doc(db, 'expenses', id);
+      await deleteDoc(expenseDocRef);
+    } catch (error) {
+      console.error("Error deleting expense: ", error);
+      throw error;
     }
   }, []);
   
@@ -153,6 +187,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     } catch (error) {
       console.error("Error adding appointment: ", error);
+      throw error;
     }
   }, []);
 
@@ -169,6 +204,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateIncome,
       deleteIncome,
       addExpense, 
+      updateExpense,
+      deleteExpense,
       addAppointment,
       totalRevenue,
       totalExpenses,
