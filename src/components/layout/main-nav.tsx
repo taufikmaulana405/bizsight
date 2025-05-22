@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -12,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar, // Import useSidebar
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +26,7 @@ const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
+  const { state: sidebarState } = useSidebar(); // Get sidebar state
 
   return (
     <SidebarMenu>
@@ -35,7 +38,8 @@ export function MainNav() {
               isActive={pathname === item.href}
               tooltip={item.label}
               className={cn(
-                "justify-start",
+                // Apply justify-start when expanded, justify-center when collapsed
+                sidebarState === 'expanded' ? "justify-start" : "justify-center",
                 pathname === item.href ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
@@ -50,3 +54,5 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
+
+    
