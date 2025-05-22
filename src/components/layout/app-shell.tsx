@@ -11,8 +11,8 @@ import {
 import { AppLogo } from './app-logo';
 import { MainNav } from './main-nav';
 import { ThemeSwitcher } from './theme-switcher';
-import { Button } from '@/components/ui/button'; // Import Button
-import { UserCircle } from 'lucide-react'; // Import UserCircle
+import { Button } from '@/components/ui/button';
+import { UserCircle } from 'lucide-react';
 
 interface AppShellProps {
   children: ReactNode;
@@ -32,7 +32,7 @@ export function AppShell({ children }: AppShellProps) {
       <SidebarInset className="flex flex-col">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
           <div className="flex items-center gap-2">
-             <SidebarTrigger className="md:hidden" />
+             <SidebarTrigger /> {/* Removed md:hidden to make it always visible */}
              {/* Placeholder for breadcrumbs or page title */}
           </div>
           <div className="flex items-center gap-2">
