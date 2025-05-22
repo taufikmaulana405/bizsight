@@ -13,7 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  useSidebar, // Import useSidebar
+  useSidebar, 
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +26,7 @@ const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  const { state: sidebarState } = useSidebar(); // Get sidebar state
+  const { state: sidebarState } = useSidebar(); 
 
   return (
     <SidebarMenu>
@@ -38,14 +38,15 @@ export function MainNav() {
               isActive={pathname === item.href}
               tooltip={item.label}
               className={cn(
-                // Apply justify-start when expanded, justify-center when collapsed
                 sidebarState === 'expanded' ? "justify-start" : "justify-center",
                 pathname === item.href ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
               <a>
                 <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <span className={cn(sidebarState === 'expanded' ? 'inline' : 'hidden')}>
+                  {item.label}
+                </span>
               </a>
             </SidebarMenuButton>
           </Link>
@@ -54,5 +55,3 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
-
-    
