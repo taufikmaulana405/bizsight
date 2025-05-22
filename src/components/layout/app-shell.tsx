@@ -1,3 +1,4 @@
+
 import type { ReactNode } from 'react';
 import {
   SidebarProvider,
@@ -9,7 +10,9 @@ import {
 } from '@/components/ui/sidebar';
 import { AppLogo } from './app-logo';
 import { MainNav } from './main-nav';
-import { ThemeSwitcher } from './theme-switcher'; // Changed import
+import { ThemeSwitcher } from './theme-switcher';
+import { Button } from '@/components/ui/button'; // Import Button
+import { UserCircle } from 'lucide-react'; // Import UserCircle
 
 interface AppShellProps {
   children: ReactNode;
@@ -32,7 +35,13 @@ export function AppShell({ children }: AppShellProps) {
              <SidebarTrigger className="md:hidden" />
              {/* Placeholder for breadcrumbs or page title */}
           </div>
-          <ThemeSwitcher /> {/* Replaced Button with ThemeSwitcher */}
+          <div className="flex items-center gap-2">
+            <ThemeSwitcher />
+            <Button variant="ghost" size="icon" aria-label="User profile">
+              <UserCircle className="h-6 w-6" />
+              <span className="sr-only">User profile</span>
+            </Button>
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}
