@@ -9,8 +9,7 @@ import {
 } from '@/components/ui/sidebar';
 import { AppLogo } from './app-logo';
 import { MainNav } from './main-nav';
-import { Button } from '@/components/ui/button';
-import { UserCircle } from 'lucide-react';
+import { ThemeSwitcher } from './theme-switcher'; // Changed import
 
 interface AppShellProps {
   children: ReactNode;
@@ -33,10 +32,7 @@ export function AppShell({ children }: AppShellProps) {
              <SidebarTrigger className="md:hidden" />
              {/* Placeholder for breadcrumbs or page title */}
           </div>
-          <Button variant="ghost" size="icon">
-            <UserCircle className="h-6 w-6" />
-            <span className="sr-only">User Profile</span>
-          </Button>
+          <ThemeSwitcher /> {/* Replaced Button with ThemeSwitcher */}
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}

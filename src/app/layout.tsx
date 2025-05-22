@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
-// import { GeistSans } from 'geist/font/sans'; // Removed problematic import
-// import { GeistMono } from 'geist/font/mono'; // Removed problematic import
 import './globals.css';
 import { AppShell } from '@/components/layout/app-shell';
 import { DataProvider } from '@/contexts/data-context';
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'BizSight - Small Business ERP',
@@ -17,14 +16,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <DataProvider>
-          <AppShell>
-            {children}
-          </AppShell>
-          <Toaster />
-        </DataProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <DataProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+            <Toaster />
+          </DataProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
