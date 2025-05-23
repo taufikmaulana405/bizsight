@@ -235,7 +235,7 @@ export default function DashboardPage() {
                     aria-label={isAiInsightEnabled ? "Disable AI Financial Insights" : "Enable AI Financial Insights"}
                     aria-pressed={isAiInsightEnabled}
                   >
-                    <Lightbulb className={cn("h-6 w-6", isAiInsightEnabled ? "text-primary" : "text-muted-foreground opacity-70")} />
+                    <Lightbulb className={cn("h-6 w-6", isAiInsightEnabled ? "text-primary" : "text-destructive")} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
