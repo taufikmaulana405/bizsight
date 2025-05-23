@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button"; // Added Button
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip components
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { generateFinancialInsight, type FinancialInsightInput, type FinancialInsightOutput } from '@/ai/flows/financial-insight-flow';
 import type { Income, Expense } from '@/lib/types';
@@ -224,8 +224,7 @@ export default function DashboardPage() {
 
       <div className="mt-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle>AI Financial Insight</CardTitle>
+          <CardHeader className="flex flex-row items-center space-x-2 pb-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -244,6 +243,7 @@ export default function DashboardPage() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <CardTitle>AI Financial Insight</CardTitle>
           </CardHeader>
           <CardContent>
             {insightLoading && isAiInsightEnabled ? (
