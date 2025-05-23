@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 import { generateFinancialInsight, type FinancialInsightInput, type FinancialInsightOutput } from '@/ai/flows/financial-insight-flow';
 import type { Income, Expense } from '@/lib/types';
@@ -71,9 +73,24 @@ export default function DashboardPage() {
   const [insightLoading, setInsightLoading] = useState<boolean>(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
+  const [isAiInsightEnabled, setIsAiInsightEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return true; // Default for SSR
+    }
+    const storedPreference = localStorage.getItem('aiInsightEnabled');
+    return storedPreference !== null ? JSON.parse(storedPreference) : true; // Default true if not set
+  });
+
+  // Effect to save AI insight preference to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aiInsightEnabled', JSON.stringify(isAiInsightEnabled));
+    }
+  }, [isAiInsightEnabled]);
+
   useEffect(() => {
     if (dataLoading) {
-      setChartData([]); 
+      setChartData([]);
       return;
     }
 
@@ -100,7 +117,7 @@ export default function DashboardPage() {
 
       const dataArray = Object.values(aggregatedData)
         .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
-        .slice(-12); 
+        .slice(-12);
 
       setChartData(dataArray);
     };
@@ -108,9 +125,8 @@ export default function DashboardPage() {
     processDataForChart();
   }, [incomes, expenses, dataLoading]);
 
-  // Create a stable key representing the data used for insight generation
   const insightInputKey = useMemo(() => {
-    if (dataLoading) return null; // Don't compute if core data is loading
+    if (dataLoading) return null;
     const monthlyData = getMonthlyDataForInsightAggregator(incomes, expenses);
     return JSON.stringify({
       totalRevenue,
@@ -122,16 +138,21 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
+    if (!isAiInsightEnabled) {
+      setFinancialInsight("AI insights are disabled. Enable the toggle above to see suggestions.");
+      setInsightLoading(false);
+      setInsightError(null);
+      return;
+    }
+
     const hasFinancialActivity = totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0;
 
     if (!dataLoading && hasFinancialActivity && insightInputKey) {
-      if (!insightLoading) { 
+      if (!insightLoading) {
         const fetchInsight = async () => {
           setInsightLoading(true);
           setInsightError(null);
           try {
-            // Re-derive monthlyData for the flow using the helper.
-            // This ensures we use the same logic as for insightInputKey.
             const monthlyDataForFlow = getMonthlyDataForInsightAggregator(incomes, expenses);
 
             const input: FinancialInsightInput = {
@@ -159,10 +180,12 @@ export default function DashboardPage() {
       const defaultMessage = "Add some income and expenses to get your first financial insight!";
       if (financialInsight !== defaultMessage || insightError) {
         setFinancialInsight(defaultMessage);
-        setInsightError(null); 
+        setInsightError(null);
       }
+       setInsightLoading(false); // Ensure loading is false if no activity
     }
-  }, [dataLoading, insightInputKey]); // Depend on dataLoading and the stable insightInputKey
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAiInsightEnabled, dataLoading, insightInputKey]); // Key dependencies that trigger re-fetch
 
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
@@ -201,29 +224,42 @@ export default function DashboardPage() {
 
       <div className="mt-4">
         <Card>
-          <CardHeader className="flex flex-row items-center space-x-2 pb-2">
-            <Lightbulb className="h-6 w-6 text-primary" />
-            <CardTitle>AI Financial Insight</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center space-x-2">
+              <Lightbulb className="h-6 w-6 text-primary" />
+              <CardTitle>AI Financial Insight</CardTitle>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="ai-insight-toggle"
+                checked={isAiInsightEnabled}
+                onCheckedChange={setIsAiInsightEnabled}
+                aria-label="Toggle AI Financial Insights"
+              />
+              <Label htmlFor="ai-insight-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                {isAiInsightEnabled ? "On" : "Off"}
+              </Label>
+            </div>
           </CardHeader>
           <CardContent>
-            {insightLoading ? (
+            {insightLoading && isAiInsightEnabled ? ( // Only show skeleton if AI is enabled and loading
               <>
                 <Skeleton className="h-4 w-3/4 mb-2" />
                 <Skeleton className="h-4 w-1/2" />
               </>
-            ) : insightError ? (
+            ) : insightError && isAiInsightEnabled ? ( // Only show error if AI is enabled
               <Alert variant="destructive">
                 <AlertDescription>{insightError}</AlertDescription>
               </Alert>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {financialInsight || "No insights available yet. Add more data!"}
+                {financialInsight || (isAiInsightEnabled ? "No insights available yet. Add more data!" : "AI insights are disabled.")}
               </p>
             )}
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="mt-8">
         <Card>
           <CardHeader>
@@ -256,10 +292,10 @@ export default function DashboardPage() {
                         const item = payload?.[0]?.payload;
                         if (item && item.yearMonth) {
                           try {
-                            const date = new Date(item.yearMonth + "-01T00:00:00"); 
+                            const date = new Date(item.yearMonth + "-01T00:00:00");
                             return format(date, "MMM yyyy");
                           } catch (e) {
-                            return item.name; 
+                            return item.name;
                           }
                         }
                         return label;
@@ -293,4 +329,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
