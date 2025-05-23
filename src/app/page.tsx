@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button"; // Added Button
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip components
 
 import { generateFinancialInsight, type FinancialInsightInput, type FinancialInsightOutput } from '@/ai/flows/financial-insight-flow';
 import type { Income, Expense } from '@/lib/types';
@@ -139,7 +139,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAiInsightEnabled) {
-      setFinancialInsight("AI insights are disabled. Enable the toggle above to see suggestions.");
+      setFinancialInsight("AI insights are disabled. Click the lightbulb to enable.");
       setInsightLoading(false);
       setInsightError(null);
       return;
@@ -185,7 +185,7 @@ export default function DashboardPage() {
        setInsightLoading(false); // Ensure loading is false if no activity
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAiInsightEnabled, dataLoading, insightInputKey]); // Key dependencies that trigger re-fetch
+  }, [isAiInsightEnabled, dataLoading, insightInputKey]);
 
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
@@ -225,35 +225,39 @@ export default function DashboardPage() {
       <div className="mt-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center space-x-2">
-              <Lightbulb className="h-6 w-6 text-primary" />
               <CardTitle>AI Financial Insight</CardTitle>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="ai-insight-toggle"
-                checked={isAiInsightEnabled}
-                onCheckedChange={setIsAiInsightEnabled}
-                aria-label="Toggle AI Financial Insights"
-              />
-              <Label htmlFor="ai-insight-toggle" className="text-sm text-muted-foreground cursor-pointer">
-                {isAiInsightEnabled ? "On" : "Off"}
-              </Label>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsAiInsightEnabled(prev => !prev)}
+                    aria-label={isAiInsightEnabled ? "Disable AI Financial Insights" : "Enable AI Financial Insights"}
+                    aria-pressed={isAiInsightEnabled}
+                  >
+                    <Lightbulb className={cn("h-6 w-6", isAiInsightEnabled ? "text-primary" : "text-muted-foreground opacity-70")} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isAiInsightEnabled ? "Click to disable AI insights" : "Click to enable AI insights"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardHeader>
           <CardContent>
-            {insightLoading && isAiInsightEnabled ? ( // Only show skeleton if AI is enabled and loading
+            {insightLoading && isAiInsightEnabled ? (
               <>
                 <Skeleton className="h-4 w-3/4 mb-2" />
                 <Skeleton className="h-4 w-1/2" />
               </>
-            ) : insightError && isAiInsightEnabled ? ( // Only show error if AI is enabled
+            ) : insightError && isAiInsightEnabled ? (
               <Alert variant="destructive">
                 <AlertDescription>{insightError}</AlertDescription>
               </Alert>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {financialInsight || (isAiInsightEnabled ? "No insights available yet. Add more data!" : "AI insights are disabled.")}
+                {financialInsight || (isAiInsightEnabled ? "No insights available yet. Add more data!" : "AI insights are disabled. Click the lightbulb to enable.")}
               </p>
             )}
           </CardContent>
@@ -329,3 +333,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
