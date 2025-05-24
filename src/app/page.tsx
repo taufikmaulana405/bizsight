@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, TrendingDown, TrendingUp, PiggyBank, Lightbulb } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react'; // Added useRef
+import { DollarSign, TrendingDown, TrendingUp, PiggyBank, Lightbulb, Download, Upload, AlertTriangle } from 'lucide-react'; // Added Download, Upload, AlertTriangle
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { useData } from '@/contexts/data-context';
 import { cn } from '@/lib/utils';
@@ -12,9 +12,20 @@ import { format } from 'date-fns';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast"; // Added useToast
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"; // Added AlertDialog components
 
 import { generateFinancialInsight, type FinancialInsightInput, type FinancialInsightOutput } from '@/ai/flows/financial-insight-flow';
-import type { Income, Expense } from '@/lib/types';
+import type { Income, Expense, AllDataExport } from '@/lib/types'; // Added AllDataExport
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
@@ -44,16 +55,16 @@ const getMonthlyDataForInsightAggregator = (
 ): Array<{ name: string; income: number; expenses: number }> => {
   const monthlyAggregatedData: { [key: string]: { name: string; income: number; expenses: number; yearMonth: string } } = {};
   currentIncomes.forEach(income => {
-    const yearMonth = format(income.date, 'yyyy-MM');
-    const monthDisplay = format(income.date, 'MMM');
+    const yearMonth = format(new Date(income.date), 'yyyy-MM'); // Ensure date is Date object
+    const monthDisplay = format(new Date(income.date), 'MMM');
     if (!monthlyAggregatedData[yearMonth]) {
       monthlyAggregatedData[yearMonth] = { name: monthDisplay, income: 0, expenses: 0, yearMonth };
     }
     monthlyAggregatedData[yearMonth].income += income.amount;
   });
   currentExpenses.forEach(expense => {
-    const yearMonth = format(expense.date, 'yyyy-MM');
-    const monthDisplay = format(expense.date, 'MMM');
+    const yearMonth = format(new Date(expense.date), 'yyyy-MM'); // Ensure date is Date object
+    const monthDisplay = format(new Date(expense.date), 'MMM');
     if (!monthlyAggregatedData[yearMonth]) {
       monthlyAggregatedData[yearMonth] = { name: monthDisplay, income: 0, expenses: 0, yearMonth };
     }
@@ -62,26 +73,32 @@ const getMonthlyDataForInsightAggregator = (
   return Object.values(monthlyAggregatedData)
     .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
     .slice(-6) // Get last 6 months for insight
-    .map(cd => ({ name: cd.name, income: cd.income, expenses: cd.expenses })); // Map to the structure expected by the flow
+    .map(cd => ({ name: cd.name, income: cd.income, expenses: cd.expenses })); 
 };
 
 
 export default function DashboardPage() {
-  const { totalRevenue, totalExpenses, totalProfit, incomes, expenses, loading: dataLoading } = useData();
+  const { totalRevenue, totalExpenses, totalProfit, incomes, expenses, appointments, loading: dataLoading, importAllData } = useData();
+  const { toast } = useToast();
   const [chartData, setChartData] = useState<any[]>([]);
   const [financialInsight, setFinancialInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState<boolean>(false);
   const [insightError, setInsightError] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
+  const [dataToImport, setDataToImport] = useState<AllDataExport | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+
 
   const [isAiInsightEnabled, setIsAiInsightEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
-      return true; // Default for SSR
+      return true; 
     }
     const storedPreference = localStorage.getItem('aiInsightEnabled');
-    return storedPreference !== null ? JSON.parse(storedPreference) : true; // Default true if not set
+    return storedPreference !== null ? JSON.parse(storedPreference) : true; 
   });
 
-  // Effect to save AI insight preference to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('aiInsightEnabled', JSON.stringify(isAiInsightEnabled));
@@ -98,8 +115,8 @@ export default function DashboardPage() {
       const aggregatedData: { [key: string]: { name: string; income: number; expenses: number; yearMonth: string } } = {};
 
       incomes.forEach(income => {
-        const yearMonth = format(income.date, 'yyyy-MM');
-        const monthDisplay = format(income.date, 'MMM');
+        const yearMonth = format(new Date(income.date), 'yyyy-MM');
+        const monthDisplay = format(new Date(income.date), 'MMM');
         if (!aggregatedData[yearMonth]) {
           aggregatedData[yearMonth] = { name: monthDisplay, income: 0, expenses: 0, yearMonth };
         }
@@ -107,8 +124,8 @@ export default function DashboardPage() {
       });
 
       expenses.forEach(expense => {
-        const yearMonth = format(expense.date, 'yyyy-MM');
-        const monthDisplay = format(expense.date, 'MMM');
+        const yearMonth = format(new Date(expense.date), 'yyyy-MM');
+        const monthDisplay = format(new Date(expense.date), 'MMM');
         if (!aggregatedData[yearMonth]) {
           aggregatedData[yearMonth] = { name: monthDisplay, income: 0, expenses: 0, yearMonth };
         }
@@ -127,6 +144,7 @@ export default function DashboardPage() {
 
   const insightInputKey = useMemo(() => {
     if (dataLoading) return null;
+    // Dates in incomes/expenses are already Date objects from DataContext
     const monthlyData = getMonthlyDataForInsightAggregator(incomes, expenses);
     return JSON.stringify({
       totalRevenue,
@@ -148,7 +166,7 @@ export default function DashboardPage() {
     const hasFinancialActivity = totalRevenue > 0 || totalExpenses > 0 || incomes.length > 0 || expenses.length > 0;
 
     if (!dataLoading && hasFinancialActivity && insightInputKey) {
-      if (!insightLoading) {
+      if (!insightLoading) { // Only fetch if not already loading
         const fetchInsight = async () => {
           setInsightLoading(true);
           setInsightError(null);
@@ -170,6 +188,7 @@ export default function DashboardPage() {
             } else {
               setInsightError("Could not generate financial insight at this time.");
             }
+            setFinancialInsight(null); // Clear previous insight on error
           } finally {
             setInsightLoading(false);
           }
@@ -182,10 +201,10 @@ export default function DashboardPage() {
         setFinancialInsight(defaultMessage);
         setInsightError(null);
       }
-       setInsightLoading(false); // Ensure loading is false if no activity
+       setInsightLoading(false); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAiInsightEnabled, dataLoading, insightInputKey]);
+  }, [isAiInsightEnabled, dataLoading, insightInputKey]); // insightLoading removed to prevent re-triggering on its own change
 
 
   const profitColor = totalProfit >= 0 ? 'text-accent' : 'text-destructive';
@@ -197,9 +216,85 @@ export default function DashboardPage() {
     return `$${value.toFixed(0)}`;
   };
 
+  const handleExportData = () => {
+    const dataToExport: AllDataExport = {
+      incomes: incomes.map(i => ({...i, date: i.date.toISOString() as any})), // Convert Date to ISO string
+      expenses: expenses.map(e => ({...e, date: e.date.toISOString() as any})),
+      appointments: appointments.map(a => ({...a, date: a.date.toISOString() as any})),
+    };
+    const jsonString = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bizsight_data_export.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: "Data Exported", description: "Your data has been downloaded as a JSON file." });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result;
+          if (typeof text === 'string') {
+            const parsedData = JSON.parse(text) as AllDataExport;
+            // Basic validation
+            if (parsedData && Array.isArray(parsedData.incomes) && Array.isArray(parsedData.expenses) && Array.isArray(parsedData.appointments)) {
+              setDataToImport(parsedData);
+              setIsImportConfirmOpen(true);
+            } else {
+              throw new Error("Invalid file format.");
+            }
+          }
+        } catch (error) {
+          toast({ title: "Import Error", description: "Failed to parse JSON file or invalid format.", variant: "destructive" });
+          console.error("Import error:", error);
+        } finally {
+          // Reset file input to allow re-selection of the same file
+          if (event.target) {
+            event.target.value = ""; 
+          }
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const confirmImportData = async () => {
+    if (dataToImport) {
+      setImportLoading(true);
+      setIsImportConfirmOpen(false);
+      try {
+        await importAllData(dataToImport);
+        toast({ title: "Import Successful", description: "Your data has been imported." });
+      } catch (error) {
+        toast({ title: "Import Failed", description: "Could not import data. Please check the console.", variant: "destructive" });
+        console.error("Import failed:", error);
+      } finally {
+        setImportLoading(false);
+        setDataToImport(null);
+      }
+    }
+  };
+
+
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        {/* Add Data Management Card/Section here if preferred, or keep buttons separate */}
+      </div>
+      
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title="Total Revenue"
@@ -296,7 +391,9 @@ export default function DashboardPage() {
                         const item = payload?.[0]?.payload;
                         if (item && item.yearMonth) {
                           try {
-                            const date = new Date(item.yearMonth + "-01T00:00:00");
+                            // Ensure date is parsed correctly regardless of timezone for display
+                            const [year, month] = item.yearMonth.split('-');
+                            const date = new Date(Number(year), Number(month) - 1, 1);
                             return format(date, "MMM yyyy");
                           } catch (e) {
                             return item.name;
@@ -330,7 +427,57 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Data Management Section */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Management</CardTitle>
+            <CardDescription>Export your application data or import data from a backup file.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-4">
+            <Button onClick={handleExportData} variant="outline" disabled={dataLoading || importLoading}>
+              <Download className="mr-2 h-4 w-4" />
+              Export All Data
+            </Button>
+            <Button onClick={handleImportClick} variant="outline" disabled={dataLoading || importLoading}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import Data
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelected}
+              accept=".json"
+              className="hidden"
+            />
+            {(dataLoading || importLoading) && <p className="text-sm text-muted-foreground">Processing...</p>}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Import Confirmation Dialog */}
+      <AlertDialog open={isImportConfirmOpen} onOpenChange={setIsImportConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
+              Confirm Data Import
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you absolutely sure you want to import this data? 
+              <strong className="text-destructive"> This action will permanently delete all your current income, expense, and appointment records and replace them with the data from the selected file.</strong> This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {setDataToImport(null); setIsImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmImportData} className="bg-destructive hover:bg-destructive/90">
+              Yes, Overwrite and Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
-
