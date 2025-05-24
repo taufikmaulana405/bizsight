@@ -12,7 +12,7 @@ import { AppLogo } from './app-logo';
 import { MainNav } from './main-nav';
 import { ThemeSwitcher } from './theme-switcher';
 import { Button } from '@/components/ui/button';
-import { UserCircle } from 'lucide-react'; // Changed from User to UserCircle to match previous state
+import { UserCircle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -48,14 +48,7 @@ export function AppShell({ children }: AppShellProps) {
              {/* Placeholder for breadcrumbs or page title */}
           </div>
           <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <ThemeSwitcher />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle theme</p>
-              </TooltipContent>
-            </Tooltip>
+            <ThemeSwitcher /> {/* Tooltip is now handled internally by ThemeSwitcher */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="User profile">
