@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle, Trash2, FileText } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info } from 'lucide-react';
 import { useData } from '@/contexts/data-context';
 import { useToast } from "@/hooks/use-toast";
 import type { AllDataExport } from '@/lib/types';
@@ -20,6 +20,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
 
@@ -201,7 +204,7 @@ export default function DataManagementPage() {
               if (type === 'incomes' && firstRow.source !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'expenses' && firstRow.category !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true;
-              else if (type === 'all_unified' && firstRow.type !== undefined && firstRow.date !== undefined) validHeaders = true; // Basic check for unified
+              else if (type === 'all_unified' && firstRow.type !== undefined && firstRow.date !== undefined) validHeaders = true; 
 
               if (validHeaders) {
                 setCsvDataToImport(parsedData);
@@ -268,50 +271,94 @@ export default function DataManagementPage() {
           <CardTitle>Export Data</CardTitle>
           <CardDescription>Download your application data in various formats.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h4 className="font-semibold mb-2 text-base">JSON Format</h4>
-            <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
-              <Download className="mr-2 h-4 w-4" />
-              Export All Data (JSON)
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">
-              Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
-            </p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h4 className="font-semibold mb-2 text-base">CSV Format</h4>
-            <div className="space-y-4">
-              <div>
-                <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
-                  <FileText className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
+        <CardContent>
+          <Accordion type="multiple" collapsible className="w-full" defaultValue={["json-all-export", "csv-all-export"]}>
+            <AccordionItem value="json-all-export">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileJson className="h-5 w-5 text-primary" />
+                  <span>JSON - All Data</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export All Data (JSON)
                 </Button>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground">
+                  Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="csv-all-export">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span>CSV - All Data (Unified)</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
+                </Button>
+                <p className="text-xs text-muted-foreground">
                   Exports all data types into a single CSV file with a 'type' column.
                 </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Button onClick={() => handleExportCSV('incomes')} variant="outline" className="w-full" disabled={anyOperationLoading}>
-                    <FileText className="mr-2 h-4 w-4" /> Export Incomes
-                  </Button>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="csv-incomes-export">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span>CSV - Incomes</span>
                 </div>
-                <div>
-                  <Button onClick={() => handleExportCSV('expenses')} variant="outline" className="w-full" disabled={anyOperationLoading}>
-                    <FileText className="mr-2 h-4 w-4" /> Export Expenses
-                  </Button>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <Button onClick={() => handleExportCSV('incomes')} variant="outline" className="w-full md:w-auto" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" /> Export Incomes
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Exports only income data.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="csv-expenses-export">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span>CSV - Expenses</span>
                 </div>
-                <div>
-                  <Button onClick={() => handleExportCSV('appointments')} variant="outline" className="w-full" disabled={anyOperationLoading}>
-                    <FileText className="mr-2 h-4 w-4" /> Export Appointments
-                  </Button>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <Button onClick={() => handleExportCSV('expenses')} variant="outline" className="w-full md:w-auto" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" /> Export Expenses
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Exports only expense data.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="csv-appointments-export">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span>CSV - Appointments</span>
                 </div>
-              </div>
-            </div>
-          </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <Button onClick={() => handleExportCSV('appointments')} variant="outline" className="w-full md:w-auto" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" /> Export Appointments
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Exports only appointment data.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 
@@ -320,71 +367,144 @@ export default function DataManagementPage() {
           <CardTitle>Import Data</CardTitle>
           <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h4 className="font-semibold mb-2 text-base">JSON Format</h4>
-            <Button onClick={handleJsonImportClick} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import All Data (JSON)
-            </Button>
-            <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
-            <p className="text-xs text-muted-foreground mt-1">
-              <strong className="text-destructive">Warning:</strong> Replaces <strong className="text-destructive">all</strong> existing income, expense, and appointment data.
-            </p>
-            {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
-          </div>
-
-          <Separator />
-          
-          <div>
-            <h4 className="font-semibold mb-2 text-base">CSV Format</h4>
-            <div className="space-y-4">
-              <div>
-                <Button onClick={() => handleCsvImportClick('all_unified')} variant="outline" disabled={anyOperationLoading}>
-                  <Upload className="mr-2 h-4 w-4" /> Import All Data (Unified CSV)
+        <CardContent>
+          <Accordion type="multiple" collapsible className="w-full" defaultValue={["json-all-import", "csv-all-import"]}>
+            <AccordionItem value="json-all-import">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileJson className="h-5 w-5 text-primary" />
+                  <span>JSON - All Data</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <Button onClick={handleJsonImportClick} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import All Data (JSON)
                 </Button>
-                <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
-                 <p className="text-xs text-muted-foreground mt-1">Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
-                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-                {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing unified CSV import...</p>}
-              </div>
+                <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
+                <p className="text-xs text-destructive">
+                  Warning: Replaces all existing income, expense, and appointment data.
+                </p>
+                {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
+              </AccordionContent>
+            </AccordionItem>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <h5 className="font-medium text-sm mb-1">Incomes (CSV)</h5>
-                  <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+            <AccordionItem value="csv-all-import">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span>CSV - All Data (Unified)</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <div className="flex items-center">
+                  <Button onClick={() => handleCsvImportClick('all_unified')} variant="outline" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Import All Data (Unified CSV)
+                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
+                <p className="text-xs text-destructive">Warning: Replaces all existing income, expense, and appointment data.</p>
+                {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing unified CSV import...</p>}
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="csv-incomes-import">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span>CSV - Incomes</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <div className="flex items-center">
+                  <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Import Incomes
                   </Button>
-                  <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
-                  <p className="text-xs text-muted-foreground mt-1">Headers: `source`, `amount`, `date`.</p>
-                  <p className="text-xs text-destructive mt-1">Warning: Replaces income data.</p>
-                  {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                         <p>Required headers: `source`, `amount`, `date`.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
+                <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
+                <p className="text-xs text-destructive">Warning: Replaces all existing income data.</p>
+                {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+              </AccordionContent>
+            </AccordionItem>
 
-                <div>
-                  <h5 className="font-medium text-sm mb-1">Expenses (CSV)</h5>
-                  <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+            <AccordionItem value="csv-expenses-import">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span>CSV - Expenses</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                 <div className="flex items-center">
+                  <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Import Expenses
                   </Button>
-                  <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
-                  <p className="text-xs text-muted-foreground mt-1">Headers: `category`, `amount`, `date`.</p>
-                  <p className="text-xs text-destructive mt-1">Warning: Replaces expense data.</p>
-                  {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Required headers: `category`, `amount`, `date`.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
+                <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
+                <p className="text-xs text-destructive">Warning: Replaces all existing expense data.</p>
+                {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+              </AccordionContent>
+            </AccordionItem>
 
-                <div>
-                  <h5 className="font-medium text-sm mb-1">Appointments (CSV)</h5>
-                  <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+            <AccordionItem value="csv-appointments-import">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span>CSV - Appointments</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-3">
+                <div className="flex items-center">
+                  <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Import Appointments
                   </Button>
-                  <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
-                  <p className="text-xs text-muted-foreground mt-1">Headers: `title`, `date`. Optional: `description`.</p>
-                  <p className="text-xs text-destructive mt-1">Warning: Replaces appointment data.</p>
-                  {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                   <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                         <p>Headers: `title`, `date`. Optional: `description`.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-              </div>
-            </div>
-          </div>
+                <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
+                <p className="text-xs text-destructive">Warning: Replaces all existing appointment data.</p>
+                {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 
@@ -480,3 +600,4 @@ export default function DataManagementPage() {
     </div>
   );
 }
+
