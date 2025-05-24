@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info, PackageOpen } from 'lucide-react';
 import { useData } from '@/contexts/data-context';
 import { useToast } from "@/hooks/use-toast";
 import type { AllDataExport } from '@/lib/types';
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from '@/lib/utils';
 
 
 type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
@@ -58,6 +59,13 @@ export default function DataManagementPage() {
   const [isCsvImportConfirmOpen, setIsCsvImportConfirmOpen] = useState(false);
   const [csvImportLoading, setCsvImportLoading] = useState(false);
 
+  // Drag and drop states
+  const [jsonDragActive, setJsonDragActive] = useState(false);
+  const [unifiedCsvDragActive, setUnifiedCsvDragActive] = useState(false);
+  const [incomeCsvDragActive, setIncomeCsvDragActive] = useState(false);
+  const [expenseCsvDragActive, setExpenseCsvDragActive] = useState(false);
+  const [appointmentCsvDragActive, setAppointmentCsvDragActive] = useState(false);
+
 
   const handleExportDataJson = () => {
     const dataToExport: AllDataExport = {
@@ -78,13 +86,12 @@ export default function DataManagementPage() {
     toast({ title: "JSON Data Exported", description: "Your data has been downloaded as a JSON file." });
   };
 
-  const handleJsonImportClick = () => {
-    jsonFileInputRef.current?.click();
-  };
-
-  const handleJsonFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const processJsonFile = (file: File | undefined) => {
     if (file) {
+      if (file.type !== "application/json") {
+        toast({ title: "Invalid File Type", description: "Please upload a valid JSON file (.json).", variant: "destructive" });
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -102,11 +109,15 @@ export default function DataManagementPage() {
           toast({ title: "JSON Import Error", description: error.message || "Failed to parse JSON file or invalid format.", variant: "destructive" });
           console.error("JSON Import error:", error);
         } finally {
-          if (event.target) event.target.value = ""; 
+          if (jsonFileInputRef.current) jsonFileInputRef.current.value = ""; 
         }
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleJsonFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    processJsonFile(event.target.files?.[0]);
   };
 
   const confirmJsonImportData = async () => {
@@ -180,17 +191,20 @@ export default function DataManagementPage() {
     toast({ title: "All Data CSV Exported", description: "Your data has been downloaded as a unified CSV file." });
   };
 
-  const handleCsvImportClick = (type: CsvImportType) => {
-    setCsvImportType(type);
-    if (type === 'incomes') csvIncomeFileInputRef.current?.click();
-    if (type === 'expenses') csvExpenseFileInputRef.current?.click();
-    if (type === 'appointments') csvAppointmentFileInputRef.current?.click();
-    if (type === 'all_unified') csvUnifiedFileInputRef.current?.click();
-  };
+  const getCsvInputRef = (type: CsvImportType) => {
+    if (type === 'incomes') return csvIncomeFileInputRef;
+    if (type === 'expenses') return csvExpenseFileInputRef;
+    if (type === 'appointments') return csvAppointmentFileInputRef;
+    if (type === 'all_unified') return csvUnifiedFileInputRef;
+    return null;
+  }
 
-  const handleCsvFileSelected = (event: React.ChangeEvent<HTMLInputElement>, type: CsvImportType) => {
-    const file = event.target.files?.[0];
+  const processCsvFile = (file: File | undefined, type: CsvImportType) => {
     if (file) {
+      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+        toast({ title: "Invalid File Type", description: "Please upload a valid CSV file (.csv).", variant: "destructive" });
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -220,11 +234,16 @@ export default function DataManagementPage() {
           toast({ title: "CSV Import Error", description: error.message || `Failed to parse CSV file or invalid format for ${type}.`, variant: "destructive" });
           console.error(`CSV Import error for ${type}:`, error);
         } finally {
-          if (event.target) event.target.value = "";
+          const inputRef = getCsvInputRef(type);
+          if (inputRef?.current) inputRef.current.value = "";
         }
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleCsvFileSelected = (event: React.ChangeEvent<HTMLInputElement>, type: CsvImportType) => {
+    processCsvFile(event.target.files?.[0], type);
   };
   
   const confirmCsvImportData = async () => {
@@ -258,10 +277,54 @@ export default function DataManagementPage() {
       }
     }
   };
+
+  // Drag and Drop Handlers
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (anyOperationLoading) return;
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>, processFileFn: (file: File | undefined) => void) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+    if (anyOperationLoading) return;
+
+    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+      processFileFn(event.dataTransfer.files[0]);
+    }
+  };
+  
+  const handleDropCsvWithType = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>, type: CsvImportType) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+    if (anyOperationLoading) return;
+    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+        processCsvFile(event.dataTransfer.files[0], type);
+    }
+  }
   
   const anyOperationLoading = jsonImportLoading || deleteAllLoading || csvImportLoading || dataContextLoading;
 
+  const dropZoneClasses = (dragActive: boolean) => 
+    cn(
+      "p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors",
+      "flex flex-col items-center justify-center space-y-3 min-h-[160px]", // Added min-height and flex properties
+      dragActive ? "border-primary bg-primary/10 text-primary" : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/10",
+      anyOperationLoading ? "cursor-not-allowed opacity-50" : ""
+    );
+
   return (
+    <PopoverProvider> {/* Changed from TooltipProvider */}
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -336,13 +399,21 @@ export default function DataManagementPage() {
             <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" />JSON - All Data</h3>
-              <Button onClick={handleJsonImportClick} variant="outline" disabled={anyOperationLoading}>
+            <div 
+              onDragOver={(e) => handleDragOver(e, setJsonDragActive)}
+              onDragLeave={(e) => handleDragLeave(e, setJsonDragActive)}
+              onDrop={(e) => handleDrop(e, setJsonDragActive, processJsonFile)}
+              className={dropZoneClasses(jsonDragActive)}
+              onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
+            >
+              <PackageOpen className={cn("h-10 w-10", jsonDragActive ? "text-primary" : "text-muted-foreground/50")} />
+              <h3 className="text-lg font-semibold flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" />JSON - All Data</h3>
+              <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                 <Upload className="mr-2 h-4 w-4" />
-                Import All Data (JSON)
+                Choose JSON File
               </Button>
               <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
+              <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
               <p className="text-xs text-destructive mt-1">
                 Warning: Replaces all existing income, expense, and appointment data.
               </p>
@@ -351,15 +422,22 @@ export default function DataManagementPage() {
             
             <Separator />
 
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />CSV - All Data (Unified)</h3>
-              <div className="flex items-center">
-                <Button onClick={() => handleCsvImportClick('all_unified')} variant="outline" disabled={anyOperationLoading}>
-                  <Upload className="mr-2 h-4 w-4" /> Import All Data (Unified CSV)
+            <div
+              onDragOver={(e) => handleDragOver(e, setUnifiedCsvDragActive)}
+              onDragLeave={(e) => handleDragLeave(e, setUnifiedCsvDragActive)}
+              onDrop={(e) => handleDropCsvWithType(e, setUnifiedCsvDragActive, 'all_unified')}
+              className={dropZoneClasses(unifiedCsvDragActive)}
+              onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
+            >
+              <PackageOpen className={cn("h-10 w-10", unifiedCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+              <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />CSV - All Data (Unified)</h3>
+              <div className="flex items-center justify-center">
+                <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
                 </Button>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto">
+                    <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
                       <Info className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </PopoverTrigger>
@@ -369,6 +447,7 @@ export default function DataManagementPage() {
                 </Popover>
               </div>
               <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
+              <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
               <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
               {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing unified CSV import...</p>}
             </div>
@@ -376,15 +455,22 @@ export default function DataManagementPage() {
             <Separator />
 
             <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
-                <div className="flex items-center">
-                  <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Import Incomes
+              <div
+                onDragOver={(e) => handleDragOver(e, setIncomeCsvDragActive)}
+                onDragLeave={(e) => handleDragLeave(e, setIncomeCsvDragActive)}
+                onDrop={(e) => handleDropCsvWithType(e, setIncomeCsvDragActive, 'incomes')}
+                className={dropZoneClasses(incomeCsvDragActive)}
+                onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
+              >
+                <PackageOpen className={cn("h-10 w-10", incomeCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
+                <div className="flex items-center justify-center">
+                  <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                   </Button>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto">
+                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
@@ -394,19 +480,27 @@ export default function DataManagementPage() {
                   </Popover>
                 </div>
                 <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
+                <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                 <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
                 {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
               </div>
 
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
-                <div className="flex items-center">
-                  <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Import Expenses
+              <div
+                onDragOver={(e) => handleDragOver(e, setExpenseCsvDragActive)}
+                onDragLeave={(e) => handleDragLeave(e, setExpenseCsvDragActive)}
+                onDrop={(e) => handleDropCsvWithType(e, setExpenseCsvDragActive, 'expenses')}
+                className={dropZoneClasses(expenseCsvDragActive)}
+                onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
+              >
+                <PackageOpen className={cn("h-10 w-10", expenseCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
+                <div className="flex items-center justify-center">
+                  <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                   </Button>
                   <Popover>
                     <PopoverTrigger asChild>
-                       <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto">
+                       <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
@@ -416,19 +510,27 @@ export default function DataManagementPage() {
                   </Popover>
                 </div>
                 <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
+                <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                 <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
                 {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
               </div>
 
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
-                <div className="flex items-center">
-                  <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Import Appointments
+              <div
+                onDragOver={(e) => handleDragOver(e, setAppointmentCsvDragActive)}
+                onDragLeave={(e) => handleDragLeave(e, setAppointmentCsvDragActive)}
+                onDrop={(e) => handleDropCsvWithType(e, setAppointmentCsvDragActive, 'appointments')}
+                className={dropZoneClasses(appointmentCsvDragActive)}
+                onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
+              >
+                <PackageOpen className={cn("h-10 w-10", appointmentCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
+                <div className="flex items-center justify-center">
+                  <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                   </Button>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto">
+                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
@@ -438,6 +540,7 @@ export default function DataManagementPage() {
                   </Popover>
                 </div>
                 <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
+                <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                 <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
                 {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
               </div>
@@ -535,6 +638,17 @@ export default function DataManagementPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+    </PopoverProvider>
   );
 }
 
+// Helper component to avoid PopoverProvider re-renders if not strictly necessary or if it's already higher up.
+// For this case, wrapping the whole page seems fine.
+const PopoverProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // In a real app, you might check if a PopoverProvider context already exists.
+  // For shadcn/ui, the Popover itself handles its context, so a global provider isn't usually needed
+  // unless specifically managing open state globally, which we are not doing here.
+  // This custom provider is mainly here because the previous response mentioned TooltipProvider.
+  // Removing it, as Popover usually manages its own context.
+  return <>{children}</>;
+};
