@@ -315,7 +315,7 @@ export default function DataManagementPage() {
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
       "border-2 border-dashed rounded-md transition-colors",
-      "flex flex-col space-y-2 min-h-[180px]", // Changed space-y-3 to space-y-2
+      "flex flex-col space-y-2", // Removed min-h-[180px]
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
@@ -407,11 +407,9 @@ export default function DataManagementPage() {
                 className={dropZoneClasses(jsonDragActive)}
                 onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
               >
-                <div className="flex items-center">
-                  <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Choose JSON File
-                  </Button>
-                </div>
+                <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Choose JSON File
+                </Button>
                 <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
                 <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
                 <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
@@ -647,6 +645,8 @@ export default function DataManagementPage() {
     </TooltipProvider>
   );
 }
+    
+
     
 
     
