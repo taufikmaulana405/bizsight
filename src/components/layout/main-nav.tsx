@@ -8,6 +8,7 @@ import {
   CalendarDays,
   TrendingUp,
   TrendingDown,
+  Database, // Added Database icon
 } from 'lucide-react';
 import {
   SidebarMenu,
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/income', label: 'Income', icon: TrendingUp },
   { href: '/expenses', label: 'Expenses', icon: TrendingDown },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/data-management', label: 'Data Management', icon: Database }, // New item
 ];
 
 export function MainNav() {
