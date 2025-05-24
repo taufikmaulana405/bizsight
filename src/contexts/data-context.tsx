@@ -62,6 +62,7 @@ interface DataContextType {
   importIncomesFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
   importExpensesFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
   importAppointmentsFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
+  importAllDataFromUnifiedCSV: (csvData: Record<string, string>[]) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -353,6 +354,72 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
+  const importAllDataFromUnifiedCSV = useCallback(async (csvData: Record<string, string>[]) => {
+    try {
+      await deleteCollectionBatch('incomes');
+      await deleteCollectionBatch('expenses');
+      await deleteCollectionBatch('appointments');
+
+      const batch = writeBatch(db);
+      const incomesCol = collection(db, 'incomes');
+      const expensesCol = collection(db, 'expenses');
+      const appointmentsCol = collection(db, 'appointments');
+
+      csvData.forEach(row => {
+        const type = row.type?.toLowerCase();
+        const date = new Date(row.date);
+        const amount = row.amount ? parseFloat(row.amount) : 0;
+
+        if (isNaN(date.getTime())) {
+          console.warn("Skipping row with invalid date:", row);
+          return;
+        }
+
+        switch (type) {
+          case 'income':
+            if (row.source && !isNaN(amount)) {
+              batch.set(doc(incomesCol), {
+                source: row.source,
+                amount: amount,
+                date: Timestamp.fromDate(date),
+              });
+            } else {
+              console.warn("Skipping invalid income row from unified CSV:", row);
+            }
+            break;
+          case 'expense':
+            if (row.category && !isNaN(amount)) {
+              batch.set(doc(expensesCol), {
+                category: row.category,
+                amount: amount,
+                date: Timestamp.fromDate(date),
+              });
+            } else {
+              console.warn("Skipping invalid expense row from unified CSV:", row);
+            }
+            break;
+          case 'appointment':
+            if (row.title) {
+              batch.set(doc(appointmentsCol), {
+                title: row.title,
+                description: row.description || "",
+                date: Timestamp.fromDate(date),
+              });
+            } else {
+              console.warn("Skipping invalid appointment row from unified CSV:", row);
+            }
+            break;
+          default:
+            console.warn("Skipping row with unknown type from unified CSV:", row);
+        }
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error importing all data from unified CSV:", error);
+      throw error;
+    }
+  }, []);
+
 
   const totalRevenue = useMemo(() => incomes.reduce((sum, income) => sum + income.amount, 0), [incomes]);
   const totalExpenses = useMemo(() => expenses.reduce((sum, expense) => sum + expense.amount, 0), [expenses]);
@@ -375,6 +442,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       importIncomesFromCSV,
       importExpensesFromCSV,
       importAppointmentsFromCSV,
+      importAllDataFromUnifiedCSV,
       totalRevenue,
       totalExpenses,
       totalProfit,
@@ -392,3 +460,4 @@ export const useData = (): DataContextType => {
   }
   return context;
 };
+

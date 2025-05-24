@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
 
-type CsvImportType = 'incomes' | 'expenses' | 'appointments';
+type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
 
 export default function DataManagementPage() {
   const { 
@@ -33,7 +33,8 @@ export default function DataManagementPage() {
     loading: dataContextLoading,
     importIncomesFromCSV,
     importExpensesFromCSV,
-    importAppointmentsFromCSV
+    importAppointmentsFromCSV,
+    importAllDataFromUnifiedCSV
   } = useData();
   const { toast } = useToast();
   
@@ -41,6 +42,7 @@ export default function DataManagementPage() {
   const csvIncomeFileInputRef = useRef<HTMLInputElement>(null);
   const csvExpenseFileInputRef = useRef<HTMLInputElement>(null);
   const csvAppointmentFileInputRef = useRef<HTMLInputElement>(null);
+  const csvUnifiedFileInputRef = useRef<HTMLInputElement>(null);
   
   const [isJsonImportConfirmOpen, setIsJsonImportConfirmOpen] = useState(false);
   const [dataToImportJson, setDataToImportJson] = useState<AllDataExport | null>(null);
@@ -140,7 +142,7 @@ export default function DataManagementPage() {
     }
   };
 
-  const handleExportCSV = (type: CsvImportType) => {
+  const handleExportCSV = (type: 'incomes' | 'expenses' | 'appointments') => {
     let dataToExport: any[] = [];
     let headers: string[] = [];
     let filename = `bizsight_${type}_export.csv`;
@@ -164,11 +166,24 @@ export default function DataManagementPage() {
     toast({ title: `${type.charAt(0).toUpperCase() + type.slice(1)} CSV Exported`, description: `Your ${type} data has been downloaded.` });
   };
 
+  const handleExportAllDataCSV = () => {
+    const unifiedData = [
+      ...incomes.map(i => ({ type: 'income', id: i.id, date: i.date, amount: i.amount, source: i.source, category: '', title: '', description: '' })),
+      ...expenses.map(e => ({ type: 'expense', id: e.id, date: e.date, amount: e.amount, source: '', category: e.category, title: '', description: '' })),
+      ...appointments.map(a => ({ type: 'appointment', id: a.id, date: a.date, amount: null, source: '', category: '', title: a.title, description: a.description || '' })),
+    ];
+    const headers = ['type', 'id', 'date', 'amount', 'source', 'category', 'title', 'description'];
+    const csvString = convertToCSV(unifiedData, headers);
+    downloadCSV(csvString, 'bizsight_all_data_export.csv');
+    toast({ title: "All Data CSV Exported", description: "Your data has been downloaded as a unified CSV file." });
+  };
+
   const handleCsvImportClick = (type: CsvImportType) => {
     setCsvImportType(type);
     if (type === 'incomes') csvIncomeFileInputRef.current?.click();
     if (type === 'expenses') csvExpenseFileInputRef.current?.click();
     if (type === 'appointments') csvAppointmentFileInputRef.current?.click();
+    if (type === 'all_unified') csvUnifiedFileInputRef.current?.click();
   };
 
   const handleCsvFileSelected = (event: React.ChangeEvent<HTMLInputElement>, type: CsvImportType) => {
@@ -186,6 +201,7 @@ export default function DataManagementPage() {
               if (type === 'incomes' && firstRow.source !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'expenses' && firstRow.category !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true;
+              else if (type === 'all_unified' && firstRow.type !== undefined && firstRow.date !== undefined) validHeaders = true; // Basic check for unified
 
               if (validHeaders) {
                 setCsvDataToImport(parsedData);
@@ -225,8 +241,11 @@ export default function DataManagementPage() {
           case 'appointments':
             await importAppointmentsFromCSV(csvDataToImport);
             break;
+          case 'all_unified':
+            await importAllDataFromUnifiedCSV(csvDataToImport);
+            break;
         }
-        toast({ title: `${currentType.charAt(0).toUpperCase() + currentType.slice(1)} CSV Import Successful`, description: `Your ${currentType} data has been imported and replaced.` });
+        toast({ title: `${currentType === 'all_unified' ? 'All Data (Unified CSV)' : currentType.charAt(0).toUpperCase() + currentType.slice(1)} Import Successful`, description: `Your ${currentType === 'all_unified' ? 'data has' : currentType + ' data has'} been imported and replaced.` });
       } catch (error) {
         toast({ title: "CSV Import Failed", description: `Could not import ${currentType} data. Please check the console.`, variant: "destructive" });
         console.error(`CSV Import for ${currentType} failed:`, error);
@@ -250,38 +269,46 @@ export default function DataManagementPage() {
           <CardDescription>Download your application data in various formats.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* JSON Export */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Export All Data (JSON)</h4>
+            <h4 className="font-semibold mb-2 text-base">JSON Format</h4>
             <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
               <Download className="mr-2 h-4 w-4" />
-              Export All Data
+              Export All Data (JSON)
             </Button>
             <p className="text-xs text-muted-foreground mt-1">
-              Exports all incomes, expenses, and appointments into a single JSON file.
+              Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
             </p>
           </div>
 
           <Separator />
 
-          {/* CSV Exports */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Export Specific Data (CSV)</h4>
-            <div className="space-y-3">
+            <h4 className="font-semibold mb-2 text-base">CSV Format</h4>
+            <div className="space-y-4">
               <div>
-                <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
-                  <FileText className="mr-2 h-4 w-4" /> Export Incomes (CSV)
+                <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
+                  <FileText className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
                 </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exports all data types into a single CSV file with a 'type' column.
+                </p>
               </div>
-              <div>
-                <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
-                  <FileText className="mr-2 h-4 w-4" /> Export Expenses (CSV)
-                </Button>
-              </div>
-              <div>
-                <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
-                  <FileText className="mr-2 h-4 w-4" /> Export Appointments (CSV)
-                </Button>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Button onClick={() => handleExportCSV('incomes')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+                    <FileText className="mr-2 h-4 w-4" /> Export Incomes
+                  </Button>
+                </div>
+                <div>
+                  <Button onClick={() => handleExportCSV('expenses')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+                    <FileText className="mr-2 h-4 w-4" /> Export Expenses
+                  </Button>
+                </div>
+                <div>
+                  <Button onClick={() => handleExportCSV('appointments')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+                    <FileText className="mr-2 h-4 w-4" /> Export Appointments
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -291,23 +318,16 @@ export default function DataManagementPage() {
       <Card>
         <CardHeader>
           <CardTitle>Import Data</CardTitle>
-          <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data.</CardDescription>
+          <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* JSON Import */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Import All Data (JSON)</h4>
+            <h4 className="font-semibold mb-2 text-base">JSON Format</h4>
             <Button onClick={handleJsonImportClick} variant="outline" disabled={anyOperationLoading}>
               <Upload className="mr-2 h-4 w-4" />
-              Import All Data
+              Import All Data (JSON)
             </Button>
-            <input
-              type="file"
-              ref={jsonFileInputRef}
-              onChange={handleJsonFileSelected}
-              accept=".json"
-              className="hidden"
-            />
+            <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
             <p className="text-xs text-muted-foreground mt-1">
               <strong className="text-destructive">Warning:</strong> Replaces <strong className="text-destructive">all</strong> existing income, expense, and appointment data.
             </p>
@@ -316,53 +336,63 @@ export default function DataManagementPage() {
 
           <Separator />
           
-          {/* Income CSV Import */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Import Incomes (CSV)</h4>
-            <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" /> Import Incomes
-            </Button>
-            <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
-            <p className="text-xs text-muted-foreground mt-1">Required headers: `source`, `amount`, `date` (ISO format).</p>
-            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
-            {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing income CSV import...</p>}
-          </div>
+            <h4 className="font-semibold mb-2 text-base">CSV Format</h4>
+            <div className="space-y-4">
+              <div>
+                <Button onClick={() => handleCsvImportClick('all_unified')} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Import All Data (Unified CSV)
+                </Button>
+                <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
+                 <p className="text-xs text-muted-foreground mt-1">Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
+                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
+                {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing unified CSV import...</p>}
+              </div>
 
-          <Separator />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <h5 className="font-medium text-sm mb-1">Incomes (CSV)</h5>
+                  <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Incomes
+                  </Button>
+                  <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
+                  <p className="text-xs text-muted-foreground mt-1">Headers: `source`, `amount`, `date`.</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces income data.</p>
+                  {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                </div>
 
-          {/* Expense CSV Import */}
-          <div>
-            <h4 className="font-semibold mb-2 text-base">Import Expenses (CSV)</h4>
-            <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" /> Import Expenses
-            </Button>
-            <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
-            <p className="text-xs text-muted-foreground mt-1">Required headers: `category`, `amount`, `date` (ISO format).</p>
-            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
-            {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing expense CSV import...</p>}
-          </div>
+                <div>
+                  <h5 className="font-medium text-sm mb-1">Expenses (CSV)</h5>
+                  <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Expenses
+                  </Button>
+                  <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
+                  <p className="text-xs text-muted-foreground mt-1">Headers: `category`, `amount`, `date`.</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces expense data.</p>
+                  {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                </div>
 
-          <Separator />
-
-          {/* Appointment CSV Import */}
-          <div>
-            <h4 className="font-semibold mb-2 text-base">Import Appointments (CSV)</h4>
-            <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" /> Import Appointments
-            </Button>
-            <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
-            <p className="text-xs text-muted-foreground mt-1">Required headers: `title`, `date` (ISO format). Optional: `description`.</p>
-            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
-            {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing appointment CSV import...</p>}
+                <div>
+                  <h5 className="font-medium text-sm mb-1">Appointments (CSV)</h5>
+                  <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" className="w-full" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Appointments
+                  </Button>
+                  <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
+                  <p className="text-xs text-muted-foreground mt-1">Headers: `title`, `date`. Optional: `description`.</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces appointment data.</p>
+                  {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card className="border-destructive">
         <CardHeader>
-          <CardTitle className="text-destructive">Delete All Data</CardTitle>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
           <CardDescription>
-            <strong className="text-destructive">Warning: This action is irreversible.</strong> It will permanently delete all income, expense, and appointment records.
+            Irreversible actions. Please be certain before proceeding.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -371,6 +401,9 @@ export default function DataManagementPage() {
             Delete All My Data
           </Button>
           {deleteAllLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing deletion...</p>}
+           <p className="text-xs text-muted-foreground mt-1">
+            <strong className="text-destructive">Warning:</strong> This action is irreversible. It will permanently delete all income, expense, and appointment records.
+          </p>
         </CardContent>
       </Card>
 
@@ -402,17 +435,22 @@ export default function DataManagementPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center">
               <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
-              Confirm CSV Data Import for {csvImportType}
+              Confirm CSV Data Import for {csvImportType === 'all_unified' ? 'All Data (Unified)' : csvImportType}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you absolutely sure you want to import this CSV file for <strong className="font-semibold">{csvImportType}</strong>? 
-              <strong className="text-destructive"> This action will permanently delete all your current {csvImportType} records and replace them with the data from the selected file.</strong> Data for other categories will not be affected. This cannot be undone for the {csvImportType} category.
+              Are you absolutely sure you want to import this CSV file for <strong className="font-semibold">{csvImportType === 'all_unified' ? 'all data types' : csvImportType}</strong>? 
+              {csvImportType === 'all_unified' ? (
+                <strong className="text-destructive"> This action will permanently delete all your current income, expense, and appointment records and replace them.</strong>
+              ) : (
+                <strong className="text-destructive"> This action will permanently delete all your current {csvImportType} records and replace them with the data from the selected file. Data for other categories will not be affected.</strong>
+              )}
+              This cannot be undone for the selected scope.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {setCsvDataToImport(null); setCsvImportType(null); setIsCsvImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmCsvImportData} className="bg-destructive hover:bg-destructive/90">
-              Yes, Overwrite {csvImportType} and Import
+              Yes, Overwrite {csvImportType === 'all_unified' ? 'All Data' : csvImportType} and Import
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -442,6 +480,3 @@ export default function DataManagementPage() {
     </div>
   );
 }
-    
-
-    
