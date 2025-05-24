@@ -314,7 +314,7 @@ export default function DataManagementPage() {
 
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
-      "p-4 border-2 border-dashed rounded-md transition-colors", // Changed p-6 to p-4
+      "border-2 border-dashed rounded-md transition-colors",
       "flex flex-col space-y-3 min-h-[180px]", 
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
