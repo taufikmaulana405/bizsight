@@ -21,36 +21,63 @@ export function ThemeSwitcher() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const [tooltipLockedClosed, setTooltipLockedClosed] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    return () => {
+      // Clear timeout on unmount
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+      }
+    };
   }, []);
+
+  const applyTooltipLock = () => {
+    setTooltipLockedClosed(true);
+    if (lockTimeoutRef.current) {
+      clearTimeout(lockTimeoutRef.current);
+    }
+    lockTimeoutRef.current = setTimeout(() => {
+      setTooltipLockedClosed(false);
+    }, 150); // A brief lock duration
+  };
+
+  const handleThemeChange = (newTheme: string) => {
+    applyTooltipLock();
+    setIsTooltipOpen(false);
+    triggerRef.current?.blur();
+    setTheme(newTheme);
+  };
 
   if (!mounted) {
     return <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-6 w-6" disabled />;
   }
 
-  const handleThemeChange = (newTheme: string) => {
-    setIsTooltipOpen(false); // Close tooltip first
-    triggerRef.current?.blur(); // Then blur the trigger
-    setTheme(newTheme); // Finally, set the theme
-  };
-
   return (
-    <Tooltip open={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
+    <Tooltip
+      open={isTooltipOpen}
+      onOpenChange={(newOpenState) => {
+        if (tooltipLockedClosed && newOpenState) {
+          // If locked and trying to open, do nothing, keep it closed
+          return;
+        }
+        setIsTooltipOpen(newOpenState);
+      }}
+    >
       <DropdownMenu
         onOpenChange={(dropdownOpenState) => {
-          // If dropdown is opening or closing, ensure tooltip is closed
-          if (dropdownOpenState) { // When dropdown opens
-            setIsTooltipOpen(false); // Force close tooltip
-          } else { // When dropdown closes (e.g. click outside, escape)
-            setIsTooltipOpen(false); // Force close tooltip
-            // If the dropdown closes for reasons other than an item click,
-            // and the trigger button still has focus, blur it.
-            // This handles cases like pressing 'Escape' or clicking outside the dropdown.
+          if (dropdownOpenState) {
+            // Dropdown is opening, ensure tooltip is closed and prepare lock if needed
+            setIsTooltipOpen(false);
+          } else {
+            // Dropdown is closing
+            applyTooltipLock(); // Apply lock as dropdown closes
+            setIsTooltipOpen(false);
             if (document.activeElement === triggerRef.current) {
-                 triggerRef.current?.blur();
+              triggerRef.current?.blur();
             }
           }
         }}
@@ -78,8 +105,7 @@ export function ThemeSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* Conditionally render TooltipContent */}
-      {isTooltipOpen && (
+      {isTooltipOpen && !tooltipLockedClosed && ( // Also check lock here for rendering
         <TooltipContent>
           <p>Toggle theme</p>
         </TooltipContent>
