@@ -22,7 +22,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip'; // Keep for potential future use or other tooltips
 
 
 type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
@@ -315,7 +315,7 @@ export default function DataManagementPage() {
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
       "border-2 border-dashed rounded-md transition-colors",
-      "flex flex-col space-y-2", // Removed min-h-[180px]
+      "flex flex-col items-start space-y-2", // Added items-start
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
@@ -398,6 +398,7 @@ export default function DataManagementPage() {
             <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* JSON - All Data Import */}
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</h3>
               <div
@@ -419,6 +420,7 @@ export default function DataManagementPage() {
 
             <Separator />
 
+            {/* CSV - All Data (Unified) Import */}
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</h3>
               <div
@@ -452,9 +454,11 @@ export default function DataManagementPage() {
 
             <Separator />
             
+            {/* CSV - Specific Data Types Import */}
             <div>
               <h3 className="text-lg font-semibold mb-2">CSV - Specific Data Types</h3>
               <div className="grid md:grid-cols-3 gap-6">
+                {/* Incomes CSV Import */}
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Incomes</h4>
                   <div
@@ -486,6 +490,7 @@ export default function DataManagementPage() {
                   </div>
                 </div>
 
+                {/* Expenses CSV Import */}
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Expenses</h4>
                   <div
@@ -517,6 +522,7 @@ export default function DataManagementPage() {
                   </div>
                 </div>
 
+                {/* Appointments CSV Import */}
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Appointments</h4>
                   <div
