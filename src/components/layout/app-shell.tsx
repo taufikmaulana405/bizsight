@@ -12,7 +12,7 @@ import { AppLogo } from './app-logo';
 import { MainNav } from './main-nav';
 import { ThemeSwitcher } from './theme-switcher';
 import { Button } from '@/components/ui/button';
-import { UserCircle } from 'lucide-react';
+import { UserCircle } from 'lucide-react'; // Changed from User to UserCircle to match previous state
 import {
   Tooltip,
   TooltipContent,
@@ -50,15 +50,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                {/* ThemeSwitcher already has a button as its root, so TooltipTrigger can wrap it directly if ThemeSwitcher itself is passed asChild or is a simple button.
-                    If ThemeSwitcher's root is a DropdownMenuTrigger which is a Button, this should work.
-                    Let's assume ThemeSwitcher's trigger can be wrapped or it itself is a button.
-                    For simplicity, we wrap the ThemeSwitcher component directly.
-                    If ThemeSwitcher's root element isn't a single focusable element, this might need adjustment in ThemeSwitcher itself.
-                */}
-                <div> {/* Extra div for TooltipTrigger if ThemeSwitcher root is complex, otherwise can be removed */}
-                  <ThemeSwitcher />
-                </div>
+                <ThemeSwitcher />
               </TooltipTrigger>
               <TooltipContent>
                 <p>Toggle theme</p>
