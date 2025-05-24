@@ -360,7 +360,9 @@ export default function DataManagementPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                    <Button variant="ghost" className="ml-2 cursor-help p-0 h-auto w-auto">
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
@@ -385,7 +387,9 @@ export default function DataManagementPage() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                       <Button variant="ghost" className="ml-2 cursor-help p-0 h-auto w-auto">
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                        <p>Required headers: `source`, `amount`, `date`.</p>
@@ -407,7 +411,9 @@ export default function DataManagementPage() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                       <Button variant="ghost" className="ml-2 cursor-help p-0 h-auto w-auto">
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Required headers: `category`, `amount`, `date`.</p>
@@ -429,7 +435,9 @@ export default function DataManagementPage() {
                  <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                       <Button variant="ghost" className="ml-2 cursor-help p-0 h-auto w-auto">
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                        <p>Headers: `title`, `date`. Optional: `description`.</p>
@@ -538,4 +546,3 @@ export default function DataManagementPage() {
   );
 }
 
-    
