@@ -312,8 +312,8 @@ export default function DataManagementPage() {
 
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
-      "p-6 border-2 border-dashed rounded-md text-center transition-colors",
-      "flex flex-col items-center justify-center space-y-3 min-h-[180px]",
+      "p-6 border-2 border-dashed rounded-md transition-colors",
+      "flex flex-col space-y-3 min-h-[180px]", // Removed text-center, items-center, justify-center
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
@@ -426,7 +426,7 @@ export default function DataManagementPage() {
                 className={dropZoneClasses(unifiedCsvDragActive)}
                 onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
               >
-                <div className="flex items-center justify-center">
+                <div className="flex items-center"> {/* Removed justify-center */}
                   <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
                   </Button>
@@ -462,7 +462,7 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(incomeCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center"> {/* Removed justify-center */}
                       <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
@@ -493,7 +493,7 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(expenseCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center"> {/* Removed justify-center */}
                       <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                       </Button>
@@ -524,7 +524,7 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(appointmentCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center"> {/* Removed justify-center */}
                       <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
@@ -652,3 +652,4 @@ const PopoverProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     
 
     
+
