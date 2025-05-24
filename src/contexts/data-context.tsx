@@ -16,7 +16,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  where // For deleting specific types during CSV import
 } from 'firebase/firestore';
 
 // Define the shape of income data for forms (matches IncomeFormValues)
@@ -33,6 +34,14 @@ export interface ExpenseFormData {
   date: Date;
 }
 
+// Define the shape of appointment data for forms
+export interface AppointmentFormData {
+  title: string;
+  date: Date;
+  description?: string;
+}
+
+
 interface DataContextType {
   incomes: Income[];
   expenses: Expense[];
@@ -43,13 +52,16 @@ interface DataContextType {
   addExpense: (expense: ExpenseFormData) => Promise<void>;
   updateExpense: (id: string, expenseData: ExpenseFormData) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  addAppointment: (appointment: Omit<Appointment, 'id'>) => Promise<void>;
+  addAppointment: (appointment: AppointmentFormData) => Promise<void>; // Use AppointmentFormData
   importAllData: (data: AllDataExport) => Promise<void>;
-  deleteAllUserData: () => Promise<void>; // New function
+  deleteAllUserData: () => Promise<void>;
   totalRevenue: number;
   totalExpenses: number;
   totalProfit: number;
   loading: boolean;
+  importIncomesFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
+  importExpensesFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
+  importAppointmentsFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -78,7 +90,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Income)));
     }, (error) => {
       console.error("Error fetching incomes: ", error);
-      // setLoading(false); // Let initial load handle this
     });
 
     const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
@@ -89,7 +100,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Expense)));
     }, (error) => {
       console.error("Error fetching expenses: ", error);
-      // setLoading(false);
     });
     
     const unsubAppointments = onSnapshot(qAppointments, (snapshot) => {
@@ -100,7 +110,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Appointment)));
     }, (error) => {
       console.error("Error fetching appointments: ", error);
-      // setLoading(false);
     });
     
     const initialLoadPromises = [
@@ -193,11 +202,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
   
-  const addAppointment = useCallback(async (appointment: Omit<Appointment, 'id'>) => {
+  const addAppointment = useCallback(async (appointment: AppointmentFormData) => {
     try {
       await addDoc(collection(db, 'appointments'), {
         ...appointment,
         date: Timestamp.fromDate(appointment.date),
+        description: appointment.description || "", // Ensure description is always a string
       });
     } catch (error) {
       console.error("Error adding appointment: ", error);
@@ -205,19 +215,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const importAllData = useCallback(async (data: AllDataExport) => {
-    // Page component will set its own loading state for this operation
-    try {
-      const deleteCollectionBatch = async (collectionName: string) => {
-        const collectionRef = collection(db, collectionName);
-        const snapshot = await getDocs(collectionRef); // Fetch all docs in the collection
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
-        await batch.commit();
-      };
+  const deleteCollectionBatch = async (collectionName: string) => {
+    const collectionRef = collection(db, collectionName);
+    const snapshot = await getDocs(collectionRef);
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  };
 
+  const importAllData = useCallback(async (data: AllDataExport) => {
+    try {
       await deleteCollectionBatch('incomes');
       await deleteCollectionBatch('expenses');
       await deleteCollectionBatch('appointments');
@@ -246,7 +255,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { id, ...appointmentData } = item; 
         addBatch.set(doc(appointmentsCol), {
           ...appointmentData,
-          date: Timestamp.fromDate(new Date(item.date))
+          date: Timestamp.fromDate(new Date(item.date)),
+          description: item.description || "",
         });
       });
       
@@ -260,23 +270,89 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteAllUserData = useCallback(async () => {
     try {
-      const collectionsToDelete = ['incomes', 'expenses', 'appointments'];
-      const batch = writeBatch(db);
-
-      for (const collectionName of collectionsToDelete) {
-        const collectionRef = collection(db, collectionName);
-        const snapshot = await getDocs(collectionRef); // Fetch all documents in the collection
-        snapshot.docs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
-      }
-      await batch.commit();
-      // Data will be re-fetched by onSnapshot listeners, updating local state.
+      await deleteCollectionBatch('incomes');
+      await deleteCollectionBatch('expenses');
+      await deleteCollectionBatch('appointments');
     } catch (error) {
       console.error("Error deleting all user data: ", error);
       throw error;
     }
   }, []);
+
+  const importIncomesFromCSV = useCallback(async (csvData: Record<string, string>[]) => {
+    try {
+      await deleteCollectionBatch('incomes');
+      const batch = writeBatch(db);
+      const incomesCol = collection(db, 'incomes');
+      csvData.forEach(row => {
+        const date = new Date(row.date); // Assumes date is ISO string
+        const amount = parseFloat(row.amount);
+        if (row.source && !isNaN(amount) && !isNaN(date.getTime())) {
+          batch.set(doc(incomesCol), {
+            source: row.source,
+            amount: amount,
+            date: Timestamp.fromDate(date),
+          });
+        } else {
+          console.warn("Skipping invalid income row from CSV:", row);
+        }
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error importing incomes from CSV:", error);
+      throw error;
+    }
+  }, []);
+
+  const importExpensesFromCSV = useCallback(async (csvData: Record<string, string>[]) => {
+    try {
+      await deleteCollectionBatch('expenses');
+      const batch = writeBatch(db);
+      const expensesCol = collection(db, 'expenses');
+      csvData.forEach(row => {
+        const date = new Date(row.date);
+        const amount = parseFloat(row.amount);
+        if (row.category && !isNaN(amount) && !isNaN(date.getTime())) {
+          batch.set(doc(expensesCol), {
+            category: row.category,
+            amount: amount,
+            date: Timestamp.fromDate(date),
+          });
+        } else {
+          console.warn("Skipping invalid expense row from CSV:", row);
+        }
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error importing expenses from CSV:", error);
+      throw error;
+    }
+  }, []);
+
+  const importAppointmentsFromCSV = useCallback(async (csvData: Record<string, string>[]) => {
+    try {
+      await deleteCollectionBatch('appointments');
+      const batch = writeBatch(db);
+      const appointmentsCol = collection(db, 'appointments');
+      csvData.forEach(row => {
+        const date = new Date(row.date);
+        if (row.title && !isNaN(date.getTime())) {
+          batch.set(doc(appointmentsCol), {
+            title: row.title,
+            description: row.description || "",
+            date: Timestamp.fromDate(date),
+          });
+        } else {
+          console.warn("Skipping invalid appointment row from CSV:", row);
+        }
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error importing appointments from CSV:", error);
+      throw error;
+    }
+  }, []);
+
 
   const totalRevenue = useMemo(() => incomes.reduce((sum, income) => sum + income.amount, 0), [incomes]);
   const totalExpenses = useMemo(() => expenses.reduce((sum, expense) => sum + expense.amount, 0), [expenses]);
@@ -295,7 +371,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       deleteExpense,
       addAppointment,
       importAllData,
-      deleteAllUserData, // Expose new function
+      deleteAllUserData,
+      importIncomesFromCSV,
+      importExpensesFromCSV,
+      importAppointmentsFromCSV,
       totalRevenue,
       totalExpenses,
       totalProfit,
