@@ -295,39 +295,37 @@ export default function DataManagementPage() {
           </div>
 
           <Separator />
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
+              <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
+                <Download className="mr-2 h-4 w-4" /> Export Incomes
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">
+                Exports only income data.
+              </p>
+            </div>
 
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
-            <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
-              <Download className="mr-2 h-4 w-4" /> Export Incomes
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">
-              Exports only income data.
-            </p>
-          </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
+              <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
+                <Download className="mr-2 h-4 w-4" /> Export Expenses
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">
+                Exports only expense data.
+              </p>
+            </div>
 
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
-            <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
-              <Download className="mr-2 h-4 w-4" /> Export Expenses
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">
-              Exports only expense data.
-            </p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
-            <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
-              <Download className="mr-2 h-4 w-4" /> Export Appointments
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">
-              Exports only appointment data.
-            </p>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
+              <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
+                <Download className="mr-2 h-4 w-4" /> Export Appointments
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">
+                Exports only appointment data.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -377,74 +375,72 @@ export default function DataManagementPage() {
 
           <Separator />
 
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
-            <div className="flex items-center">
-              <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" disabled={anyOperationLoading}>
-                <Upload className="mr-2 h-4 w-4" /> Import Incomes
-              </Button>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                     <p>Required headers: `source`, `amount`, `date`.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
+              <div className="flex items-center">
+                <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Import Incomes
+                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                       <p>Required headers: `source`, `amount`, `date`.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
+              <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
+              {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
             </div>
-            <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
-            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
-            {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
-          </div>
 
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
-             <div className="flex items-center">
-              <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" disabled={anyOperationLoading}>
-                <Upload className="mr-2 h-4 w-4" /> Import Expenses
-              </Button>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Required headers: `category`, `amount`, `date`.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
+               <div className="flex items-center">
+                <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Import Expenses
+                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Required headers: `category`, `amount`, `date`.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
+              <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
+              {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
             </div>
-            <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
-            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
-            {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
-          </div>
 
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
-            <div className="flex items-center">
-              <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" disabled={anyOperationLoading}>
-                <Upload className="mr-2 h-4 w-4" /> Import Appointments
-              </Button>
-               <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                     <p>Headers: `title`, `date`. Optional: `description`.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
+              <div className="flex items-center">
+                <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" disabled={anyOperationLoading}>
+                  <Upload className="mr-2 h-4 w-4" /> Import Appointments
+                </Button>
+                 <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground ml-2 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                       <p>Headers: `title`, `date`. Optional: `description`.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
+              <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
+              {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
             </div>
-            <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
-            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
-            {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
           </div>
         </CardContent>
       </Card>
@@ -541,6 +537,5 @@ export default function DataManagementPage() {
     </div>
   );
 }
-
 
     
