@@ -335,7 +335,6 @@ export default function DataManagementPage() {
 
 
   return (
-    <PopoverProvider> {/* Add PopoverProvider at a high level if not already present elsewhere like layout */}
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -375,7 +374,7 @@ export default function DataManagementPage() {
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Incomes</h4>
-                  <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
+                  <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading} className="w-full md:w-auto">
                     <Download className="mr-2 h-4 w-4" /> Export Incomes
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -384,7 +383,7 @@ export default function DataManagementPage() {
                 </div>
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Expenses</h4>
-                  <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
+                  <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading} className="w-full md:w-auto">
                     <Download className="mr-2 h-4 w-4" /> Export Expenses
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -393,7 +392,7 @@ export default function DataManagementPage() {
                 </div>
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Appointments</h4>
-                  <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
+                  <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading} className="w-full md:w-auto">
                     <Download className="mr-2 h-4 w-4" /> Export Appointments
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -430,7 +429,7 @@ export default function DataManagementPage() {
                     </Button>
                     <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -465,7 +464,7 @@ export default function DataManagementPage() {
                     onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
                   >
                     <div className="flex items-center">
-                      <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
+                       <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading} className="flex-grow">
                         <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
                       <Popover>
@@ -497,12 +496,12 @@ export default function DataManagementPage() {
                     onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
                   >
                     <div className="flex items-center">
-                      <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                       <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading} className="flex-grow">
                         <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                       </Button>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -529,12 +528,12 @@ export default function DataManagementPage() {
                     onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
                   >
                     <div className="flex items-center">
-                      <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                      <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading} className="flex-grow">
                         <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
                        <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -640,7 +639,7 @@ export default function DataManagementPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </PopoverProvider>
   );
 }
     
+
