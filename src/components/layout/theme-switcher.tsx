@@ -42,10 +42,16 @@ export function ThemeSwitcher() {
       <DropdownMenu
         onOpenChange={(dropdownOpenState) => {
           // If dropdown is opening or closing, ensure tooltip is closed
-          if (dropdownOpenState) {
-            setIsTooltipOpen(false); // Force close on open
-          } else {
-            setIsTooltipOpen(false); // Force close on close (click outside, escape, etc.)
+          if (dropdownOpenState) { // When dropdown opens
+            setIsTooltipOpen(false); // Force close tooltip
+          } else { // When dropdown closes (e.g. click outside, escape)
+            setIsTooltipOpen(false); // Force close tooltip
+            // If the dropdown closes for reasons other than an item click,
+            // and the trigger button still has focus, blur it.
+            // This handles cases like pressing 'Escape' or clicking outside the dropdown.
+            if (document.activeElement === triggerRef.current) {
+                 triggerRef.current?.blur();
+            }
           }
         }}
       >
@@ -72,9 +78,12 @@ export function ThemeSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <TooltipContent>
-        <p>Toggle theme</p>
-      </TooltipContent>
+      {/* Conditionally render TooltipContent */}
+      {isTooltipOpen && (
+        <TooltipContent>
+          <p>Toggle theme</p>
+        </TooltipContent>
+      )}
     </Tooltip>
   );
 }
