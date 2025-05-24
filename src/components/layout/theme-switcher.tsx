@@ -28,32 +28,36 @@ export function ThemeSwitcher() {
   useEffect(() => {
     setMounted(true);
     return () => {
-      // Clear timeout on unmount
       if (lockTimeoutRef.current) {
         clearTimeout(lockTimeoutRef.current);
       }
     };
   }, []);
 
-  const applyTooltipLock = () => {
+  const applyTooltipLockAndBlur = () => {
+    // 1. Immediately try to close the tooltip's state
+    setIsTooltipOpen(false);
+    // 2. Attempt to remove focus from the trigger
+    triggerRef.current?.blur();
+    // 3. Activate the lock to prevent reopening for a short duration
     setTooltipLockedClosed(true);
-    setIsTooltipOpen(false); // Explicitly set to closed when lock is applied
 
     if (lockTimeoutRef.current) {
       clearTimeout(lockTimeoutRef.current);
     }
     lockTimeoutRef.current = setTimeout(() => {
       setTooltipLockedClosed(false);
-    }, 150); // A brief lock duration
+    }, 200); // Increased duration slightly
   };
 
   const handleThemeChange = (newTheme: string) => {
-    applyTooltipLock(); // This will set isTooltipOpen to false
-    triggerRef.current?.blur();
+    applyTooltipLockAndBlur();
     setTheme(newTheme);
   };
 
   if (!mounted) {
+    // Render a disabled button or a placeholder during server rendering / before mount
+    // This ensures TooltipTrigger asChild has a valid child.
     return <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-6 w-6" disabled />;
   }
 
@@ -72,14 +76,11 @@ export function ThemeSwitcher() {
       <DropdownMenu
         onOpenChange={(dropdownOpenState) => {
           if (dropdownOpenState) {
-            // Dropdown is opening, ensure tooltip is closed.
+            // Dropdown is opening, ensure tooltip is explicitly closed.
             setIsTooltipOpen(false);
           } else {
-            // Dropdown is closing, apply lock and blur if needed.
-            applyTooltipLock();
-            if (document.activeElement === triggerRef.current) {
-              triggerRef.current?.blur();
-            }
+            // Dropdown is closing, apply lock and blur.
+            applyTooltipLockAndBlur();
           }
         }}
       >
@@ -106,6 +107,7 @@ export function ThemeSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {/* Conditionally render TooltipContent based on isTooltipOpen AND NOT tooltipLockedClosed */}
       {isTooltipOpen && !tooltipLockedClosed && (
         <TooltipContent>
           <p>Toggle theme</p>
