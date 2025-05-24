@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Trash2 } from 'lucide-react';
 import { useData } from '@/contexts/data-context';
 import { useToast } from "@/hooks/use-toast";
 import type { AllDataExport } from '@/lib/types';
@@ -20,16 +20,20 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function DataManagementPage() {
-  const { incomes, expenses, appointments, importAllData, loading: dataLoading } = useData();
+  const { incomes, expenses, appointments, importAllData, deleteAllUserData, loading: dataContextLoading } = useData();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [dataToImport, setDataToImport] = useState<AllDataExport | null>(null);
   const [importLoading, setImportLoading] = useState(false);
 
+  const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false);
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+
   const handleExportData = () => {
     const dataToExport: AllDataExport = {
-      incomes: incomes.map(i => ({...i, date: i.date.toISOString() as any})), // Convert Date to ISO string
+      incomes: incomes.map(i => ({...i, date: i.date.toISOString() as any})),
       expenses: expenses.map(e => ({...e, date: e.date.toISOString() as any})),
       appointments: appointments.map(a => ({...a, date: a.date.toISOString() as any})),
     };
@@ -59,7 +63,6 @@ export default function DataManagementPage() {
           const text = e.target?.result;
           if (typeof text === 'string') {
             const parsedData = JSON.parse(text) as AllDataExport;
-            // Basic validation
             if (parsedData && Array.isArray(parsedData.incomes) && Array.isArray(parsedData.expenses) && Array.isArray(parsedData.appointments)) {
               setDataToImport(parsedData);
               setIsImportConfirmOpen(true);
@@ -71,7 +74,6 @@ export default function DataManagementPage() {
           toast({ title: "Import Error", description: "Failed to parse JSON file or invalid format.", variant: "destructive" });
           console.error("Import error:", error);
         } finally {
-          // Reset file input to allow re-selection of the same file
           if (event.target) {
             event.target.value = ""; 
           }
@@ -87,7 +89,7 @@ export default function DataManagementPage() {
       setIsImportConfirmOpen(false);
       try {
         await importAllData(dataToImport);
-        toast({ title: "Import Successful", description: "Your data has been imported." });
+        toast({ title: "Import Successful", description: "Your data has been imported and replaced." });
       } catch (error) {
         toast({ title: "Import Failed", description: "Could not import data. Please check the console.", variant: "destructive" });
         console.error("Import failed:", error);
@@ -97,6 +99,26 @@ export default function DataManagementPage() {
       }
     }
   };
+
+  const handleDeleteAllDataInitiate = () => {
+    setIsDeleteAllConfirmOpen(true);
+  };
+
+  const confirmDeleteAllData = async () => {
+    setDeleteAllLoading(true);
+    setIsDeleteAllConfirmOpen(false);
+    try {
+      await deleteAllUserData();
+      toast({ title: "All Data Deleted", description: "All your income, expense, and appointment records have been permanently deleted." });
+    } catch (error) {
+      toast({ title: "Deletion Failed", description: "Could not delete all data. Please check the console.", variant: "destructive" });
+      console.error("Delete all data failed:", error);
+    } finally {
+      setDeleteAllLoading(false);
+    }
+  };
+  
+  const anyOperationLoading = importLoading || deleteAllLoading || dataContextLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,11 +130,11 @@ export default function DataManagementPage() {
           <CardDescription>Download all your income, expense, and appointment data as a JSON file. This can be used as a backup or for migrating to another system.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleExportData} variant="outline" disabled={dataLoading || importLoading}>
+          <Button onClick={handleExportData} variant="outline" disabled={anyOperationLoading}>
             <Download className="mr-2 h-4 w-4" />
             Export All Data
           </Button>
-          {(dataLoading || importLoading) && <p className="text-sm text-muted-foreground ml-4">Processing...</p>}
+          {anyOperationLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing...</p>}
         </CardContent>
       </Card>
 
@@ -124,7 +146,7 @@ export default function DataManagementPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleImportClick} variant="outline" disabled={dataLoading || importLoading}>
+          <Button onClick={handleImportClick} variant="outline" disabled={anyOperationLoading}>
             <Upload className="mr-2 h-4 w-4" />
             Import Data from File
           </Button>
@@ -135,7 +157,23 @@ export default function DataManagementPage() {
             accept=".json"
             className="hidden"
           />
-           {(dataLoading || importLoading) && <p className="text-sm text-muted-foreground ml-4">Processing...</p>}
+           {anyOperationLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing...</p>}
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Delete All Data</CardTitle>
+          <CardDescription>
+            <strong className="text-destructive">Warning: This action is irreversible.</strong> It will permanently delete all income, expense, and appointment records from your account. This cannot be undone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleDeleteAllDataInitiate} variant="destructive" disabled={anyOperationLoading}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete All My Data
+          </Button>
+          {anyOperationLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing...</p>}
         </CardContent>
       </Card>
 
@@ -155,6 +193,27 @@ export default function DataManagementPage() {
             <AlertDialogCancel onClick={() => {setDataToImport(null); setIsImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmImportData} className="bg-destructive hover:bg-destructive/90">
               Yes, Overwrite and Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteAllConfirmOpen} onOpenChange={setIsDeleteAllConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
+              Confirm Delete All Data
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you absolutely sure you want to delete all your data? 
+              <strong className="text-destructive"> This will permanently erase all income, expense, and appointment records. This action cannot be undone.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteAllConfirmOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteAllData} className="bg-destructive hover:bg-destructive/90">
+              Yes, Delete All Data Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

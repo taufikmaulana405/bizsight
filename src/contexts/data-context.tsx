@@ -3,7 +3,7 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
-import type { Income, Expense, Appointment, AllDataExport } from '@/lib/types'; // Added AllDataExport
+import type { Income, Expense, Appointment, AllDataExport } from '@/lib/types';
 import { db } from '@/lib/firebase/config';
 import { 
   collection, 
@@ -16,7 +16,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  writeBatch // Added writeBatch
+  writeBatch
 } from 'firebase/firestore';
 
 // Define the shape of income data for forms (matches IncomeFormValues)
@@ -44,7 +44,8 @@ interface DataContextType {
   updateExpense: (id: string, expenseData: ExpenseFormData) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   addAppointment: (appointment: Omit<Appointment, 'id'>) => Promise<void>;
-  importAllData: (data: AllDataExport) => Promise<void>; // New import function
+  importAllData: (data: AllDataExport) => Promise<void>;
+  deleteAllUserData: () => Promise<void>; // New function
   totalRevenue: number;
   totalExpenses: number;
   totalProfit: number;
@@ -77,7 +78,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Income)));
     }, (error) => {
       console.error("Error fetching incomes: ", error);
-      setLoading(false); // Ensure loading is set to false on error too
+      // setLoading(false); // Let initial load handle this
     });
 
     const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
@@ -88,7 +89,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Expense)));
     }, (error) => {
       console.error("Error fetching expenses: ", error);
-      setLoading(false);
+      // setLoading(false);
     });
     
     const unsubAppointments = onSnapshot(qAppointments, (snapshot) => {
@@ -99,13 +100,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } as Appointment)));
     }, (error) => {
       console.error("Error fetching appointments: ", error);
-      setLoading(false);
+      // setLoading(false);
     });
     
-    // Set loading to false after initial listeners are set up.
-    // Data will stream in. A more robust approach might use Promise.allSettled
-    // with initial getDocs if an "initial load complete" state is critical.
-    // For now, this makes the UI responsive faster.
     const initialLoadPromises = [
       getDocs(qIncomes),
       getDocs(qExpenses),
@@ -209,12 +206,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const importAllData = useCallback(async (data: AllDataExport) => {
-    setLoading(true);
+    // Page component will set its own loading state for this operation
     try {
       const deleteCollectionBatch = async (collectionName: string) => {
         const collectionRef = collection(db, collectionName);
-        const q = query(collectionRef);
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(collectionRef); // Fetch all docs in the collection
         const batch = writeBatch(db);
         snapshot.docs.forEach(doc => {
           batch.delete(doc.ref);
@@ -229,28 +225,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const addBatch = writeBatch(db);
       const incomesCol = collection(db, 'incomes');
       data.incomes.forEach(item => {
-        const { id, ...incomeData } = item; // Exclude old ID
+        const { id, ...incomeData } = item; 
         addBatch.set(doc(incomesCol), {
           ...incomeData,
-          date: Timestamp.fromDate(new Date(item.date)) // Ensure date is converted
+          date: Timestamp.fromDate(new Date(item.date))
         });
       });
 
       const expensesCol = collection(db, 'expenses');
       data.expenses.forEach(item => {
-        const { id, ...expenseData } = item; // Exclude old ID
+        const { id, ...expenseData } = item;
         addBatch.set(doc(expensesCol), {
           ...expenseData,
-          date: Timestamp.fromDate(new Date(item.date)) // Ensure date is converted
+          date: Timestamp.fromDate(new Date(item.date))
         });
       });
 
       const appointmentsCol = collection(db, 'appointments');
       data.appointments.forEach(item => {
-        const { id, ...appointmentData } = item; // Exclude old ID
+        const { id, ...appointmentData } = item; 
         addBatch.set(doc(appointmentsCol), {
           ...appointmentData,
-          date: Timestamp.fromDate(new Date(item.date)) // Ensure date is converted
+          date: Timestamp.fromDate(new Date(item.date))
         });
       });
       
@@ -258,12 +254,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     } catch (error) {
       console.error("Error importing data: ", error);
-      throw error; // Re-throw to be caught by the calling UI
-    } finally {
-      // Data will be re-fetched by onSnapshot listeners, so no explicit setLoading(false) here
-      // is strictly needed if onSnapshot updates loading state, but it's good practice for the import function.
-      // However, relying on onSnapshot to update loading might be better to reflect real data state.
-      // For now, we'll let onSnapshot handle the final loading state update.
+      throw error;
+    }
+  }, []);
+
+  const deleteAllUserData = useCallback(async () => {
+    try {
+      const collectionsToDelete = ['incomes', 'expenses', 'appointments'];
+      const batch = writeBatch(db);
+
+      for (const collectionName of collectionsToDelete) {
+        const collectionRef = collection(db, collectionName);
+        const snapshot = await getDocs(collectionRef); // Fetch all documents in the collection
+        snapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+      }
+      await batch.commit();
+      // Data will be re-fetched by onSnapshot listeners, updating local state.
+    } catch (error) {
+      console.error("Error deleting all user data: ", error);
+      throw error;
     }
   }, []);
 
@@ -283,7 +294,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateExpense,
       deleteExpense,
       addAppointment,
-      importAllData, // Added importAllData
+      importAllData,
+      deleteAllUserData, // Expose new function
       totalRevenue,
       totalExpenses,
       totalProfit,
