@@ -22,7 +22,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
-import { TooltipProvider } from '@/components/ui/tooltip'; // Keep for potential future use or other tooltips
 
 
 type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
@@ -315,14 +314,13 @@ export default function DataManagementPage() {
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
       "border-2 border-dashed rounded-md transition-colors",
-      "flex flex-col items-start space-y-2", // Added items-start
+      "flex flex-col items-start space-y-2", 
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
 
 
   return (
-    <TooltipProvider>
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -362,7 +360,7 @@ export default function DataManagementPage() {
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Incomes</h4>
-                  <Button onClick={() => handleExportCSV('incomes')} variant="outline" size="sm" disabled={anyOperationLoading}>
+                  <Button onClick={() => handleExportCSV('incomes')} variant="outline" className="w-full" disabled={anyOperationLoading}>
                     <Download className="mr-2 h-4 w-4" /> Export Incomes
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -371,7 +369,7 @@ export default function DataManagementPage() {
                 </div>
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Expenses</h4>
-                  <Button onClick={() => handleExportCSV('expenses')} variant="outline" size="sm" disabled={anyOperationLoading}>
+                  <Button onClick={() => handleExportCSV('expenses')} variant="outline" className="w-full" disabled={anyOperationLoading}>
                     <Download className="mr-2 h-4 w-4" /> Export Expenses
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -380,7 +378,7 @@ export default function DataManagementPage() {
                 </div>
                 <div>
                   <h4 className="font-medium mb-1 flex items-center gap-2"><FileText className="h-5 w-5" /> Appointments</h4>
-                  <Button onClick={() => handleExportCSV('appointments')} variant="outline" size="sm" disabled={anyOperationLoading}>
+                  <Button onClick={() => handleExportCSV('appointments')} variant="outline" className="w-full" disabled={anyOperationLoading}>
                     <Download className="mr-2 h-4 w-4" /> Export Appointments
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -430,13 +428,13 @@ export default function DataManagementPage() {
                 className={dropZoneClasses(unifiedCsvDragActive)}
                 onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
               >
-                <div className="flex items-center">
-                  <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                <div className="flex items-center w-full">
+                  <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" className="flex-grow" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
                   </Button>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </PopoverTrigger>
@@ -468,13 +466,13 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(incomeCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center">
-                      <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
+                    <div className="flex items-center w-full">
+                      <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" className="flex-grow" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
                        <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -500,13 +498,13 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(expenseCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center">
-                      <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                    <div className="flex items-center w-full">
+                      <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" className="flex-grow" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                       </Button>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -532,13 +530,13 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(appointmentCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center">
-                      <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                    <div className="flex items-center w-full">
+                      <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" className="flex-grow" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -648,11 +646,6 @@ export default function DataManagementPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </TooltipProvider>
   );
 }
-    
-
-    
-
     
