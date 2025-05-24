@@ -37,6 +37,8 @@ export function ThemeSwitcher() {
 
   const applyTooltipLock = () => {
     setTooltipLockedClosed(true);
+    setIsTooltipOpen(false); // Explicitly set to closed when lock is applied
+
     if (lockTimeoutRef.current) {
       clearTimeout(lockTimeoutRef.current);
     }
@@ -46,8 +48,7 @@ export function ThemeSwitcher() {
   };
 
   const handleThemeChange = (newTheme: string) => {
-    applyTooltipLock();
-    setIsTooltipOpen(false);
+    applyTooltipLock(); // This will set isTooltipOpen to false
     triggerRef.current?.blur();
     setTheme(newTheme);
   };
@@ -61,7 +62,8 @@ export function ThemeSwitcher() {
       open={isTooltipOpen}
       onOpenChange={(newOpenState) => {
         if (tooltipLockedClosed && newOpenState) {
-          // If locked and trying to open, do nothing, keep it closed
+          // If lock is active and tooltip tries to open, force our state to remain closed.
+          setIsTooltipOpen(false);
           return;
         }
         setIsTooltipOpen(newOpenState);
@@ -70,12 +72,11 @@ export function ThemeSwitcher() {
       <DropdownMenu
         onOpenChange={(dropdownOpenState) => {
           if (dropdownOpenState) {
-            // Dropdown is opening, ensure tooltip is closed and prepare lock if needed
+            // Dropdown is opening, ensure tooltip is closed.
             setIsTooltipOpen(false);
           } else {
-            // Dropdown is closing
-            applyTooltipLock(); // Apply lock as dropdown closes
-            setIsTooltipOpen(false);
+            // Dropdown is closing, apply lock and blur if needed.
+            applyTooltipLock();
             if (document.activeElement === triggerRef.current) {
               triggerRef.current?.blur();
             }
@@ -105,7 +106,7 @@ export function ThemeSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {isTooltipOpen && !tooltipLockedClosed && ( // Also check lock here for rendering
+      {isTooltipOpen && !tooltipLockedClosed && (
         <TooltipContent>
           <p>Toggle theme</p>
         </TooltipContent>
