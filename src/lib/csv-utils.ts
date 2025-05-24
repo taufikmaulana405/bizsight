@@ -1,6 +1,4 @@
 
-'use server'; // Can be used by server components if needed, though download is client-side
-
 /**
  * @fileOverview CSV utility functions for exporting and importing data.
  */
