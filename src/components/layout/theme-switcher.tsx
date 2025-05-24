@@ -22,8 +22,7 @@ export function ThemeSwitcher() {
 
   if (!mounted) {
     // Render a placeholder or null to avoid hydration mismatch
-    // You could use a Skeleton here if preferred
-    return <Button variant="ghost" size="icon" className="h-6 w-6" disabled />;
+    return <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-6 w-6" disabled />;
   }
 
   return (
