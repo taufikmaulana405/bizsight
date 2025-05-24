@@ -314,7 +314,7 @@ export default function DataManagementPage() {
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
       "border-2 border-dashed rounded-md transition-colors",
-      "flex flex-col items-start space-y-2", // changed from space-y-3
+      "flex flex-col items-start space-y-2", 
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
@@ -330,27 +330,27 @@ export default function DataManagementPage() {
             <CardDescription>Download your application data in various formats.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</h3>
-              <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
-                <Download className="mr-2 h-4 w-4" />
-                Export All Data (JSON)
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
-              </p>
-            </div>
-            
-            <Separator />
-
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</h3>
-              <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
-                <Download className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Exports all data types into a single CSV file with a 'type' column.
-              </p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</h3>
+                <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export All Data (JSON)
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</h3>
+                <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
+                  <Download className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exports all data types into a single CSV file with a 'type' column.
+                </p>
+              </div>
             </div>
             
             <Separator />
@@ -396,60 +396,60 @@ export default function DataManagementPage() {
             <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* JSON - All Data Import */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</h3>
-              <div
-                onDragOver={(e) => handleDragOver(e, setJsonDragActive)}
-                onDragLeave={(e) => handleDragLeave(e, setJsonDragActive)}
-                onDrop={handleDropJson}
-                className={dropZoneClasses(jsonDragActive)}
-                onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
-              >
-                <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                  <Upload className="mr-2 h-4 w-4" /> Choose JSON File
-                </Button>
-                <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
-                <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
-                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-                {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* CSV - All Data (Unified) Import */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</h3>
-              <div
-                onDragOver={(e) => handleDragOver(e, setUnifiedCsvDragActive)}
-                onDragLeave={(e) => handleDragLeave(e, setUnifiedCsvDragActive)}
-                onDrop={(e) => handleDropCsv(e, 'all_unified', setUnifiedCsvDragActive)}
-                className={dropZoneClasses(unifiedCsvDragActive)}
-                onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
-              >
-                <div className="flex items-center">
-                  <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* JSON - All Data Import */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</h3>
+                <div
+                  onDragOver={(e) => handleDragOver(e, setJsonDragActive)}
+                  onDragLeave={(e) => handleDragLeave(e, setJsonDragActive)}
+                  onDrop={handleDropJson}
+                  className={dropZoneClasses(jsonDragActive)}
+                  onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
+                >
+                  <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Choose JSON File
                   </Button>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                       <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto text-sm p-2">
-                      <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
-                    </PopoverContent>
-                  </Popover>
+                  <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
+                  <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
+                  {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
                 </div>
-                <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
-                <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
-                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-                {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+              </div>
+
+              {/* CSV - All Data (Unified) Import */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</h3>
+                <div
+                  onDragOver={(e) => handleDragOver(e, setUnifiedCsvDragActive)}
+                  onDragLeave={(e) => handleDragLeave(e, setUnifiedCsvDragActive)}
+                  onDrop={(e) => handleDropCsv(e, 'all_unified', setUnifiedCsvDragActive)}
+                  className={dropZoneClasses(unifiedCsvDragActive)}
+                  onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
+                >
+                  <div className="flex items-center">
+                    <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                      <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
+                    </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto text-sm p-2">
+                        <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
+                  <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
+                  {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                </div>
               </div>
             </div>
-
+            
             <Separator />
             
             {/* CSV - Specific Data Types Import */}
@@ -470,9 +470,9 @@ export default function DataManagementPage() {
                       <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
-                       <Popover>
+                      <Popover>
                         <PopoverTrigger asChild>
-                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
@@ -536,7 +536,7 @@ export default function DataManagementPage() {
                       </Button>
                       <Popover>
                         <PopoverTrigger asChild>
-                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </PopoverTrigger>
