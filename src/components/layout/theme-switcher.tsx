@@ -13,27 +13,30 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip"; // Added Tooltip components
+} from "@/components/ui/tooltip";
 import { Moon, Sun, Laptop } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export function ThemeSwitcher() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) {
-    // Render a placeholder or null to avoid hydration mismatch
-    // This button won't have a tooltip, which is fine as it's non-interactive or briefly shown.
     return <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-6 w-6" disabled />;
   }
 
   return (
-    <Tooltip>
-      <DropdownMenu>
+    <Tooltip open={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
+      <DropdownMenu onOpenChange={(open) => {
+        if (!open) { // If dropdown is closing
+          setIsTooltipOpen(false); // Explicitly close the tooltip
+        }
+      }}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Toggle theme">
