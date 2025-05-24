@@ -87,15 +87,16 @@ export default function DataManagementPage() {
           const text = e.target?.result;
           if (typeof text === 'string') {
             const parsedData = JSON.parse(text) as AllDataExport;
+            // Basic validation for top-level keys
             if (parsedData && Array.isArray(parsedData.incomes) && Array.isArray(parsedData.expenses) && Array.isArray(parsedData.appointments)) {
               setDataToImportJson(parsedData);
               setIsJsonImportConfirmOpen(true);
             } else {
-              throw new Error("Invalid JSON file format.");
+              throw new Error("Invalid JSON file format. Missing required top-level keys: incomes, expenses, appointments.");
             }
           }
-        } catch (error) {
-          toast({ title: "JSON Import Error", description: "Failed to parse JSON file or invalid format.", variant: "destructive" });
+        } catch (error: any) {
+          toast({ title: "JSON Import Error", description: error.message || "Failed to parse JSON file or invalid format.", variant: "destructive" });
           console.error("JSON Import error:", error);
         } finally {
           if (event.target) event.target.value = ""; 
@@ -155,7 +156,7 @@ export default function DataManagementPage() {
         headers = ['id', 'category', 'amount', 'date'];
         break;
       case 'appointments':
-        dataToExport = appointments.map(a => ({...a, description: a.description || ""}));
+        dataToExport = appointments.map(a => ({...a, description: a.description || ""})); // ensure description is string
         headers = ['id', 'title', 'description', 'date'];
         break;
     }
@@ -165,7 +166,7 @@ export default function DataManagementPage() {
   };
 
   const handleCsvImportClick = (type: CsvImportType) => {
-    setCsvImportType(type); // Keep this to identify which import is happening for the dialog and processing message
+    setCsvImportType(type);
     if (type === 'incomes') csvIncomeFileInputRef.current?.click();
     if (type === 'expenses') csvExpenseFileInputRef.current?.click();
     if (type === 'appointments') csvAppointmentFileInputRef.current?.click();
@@ -185,11 +186,11 @@ export default function DataManagementPage() {
               let validHeaders = false;
               if (type === 'incomes' && firstRow.source !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'expenses' && firstRow.category !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
-              else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true;
+              else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true; // description is optional
 
               if (validHeaders) {
                 setCsvDataToImport(parsedData);
-                setCsvImportType(type); // This is already being set, good.
+                setCsvImportType(type);
                 setIsCsvImportConfirmOpen(true);
               } else {
                  throw new Error(`Invalid CSV format for ${type}. Missing required headers.`);
@@ -213,7 +214,7 @@ export default function DataManagementPage() {
     if (csvDataToImport && csvImportType) {
       setCsvImportLoading(true);
       setIsCsvImportConfirmOpen(false);
-      const currentType = csvImportType; // Capture current type for toast messages
+      const currentType = csvImportType;
       try {
         switch (currentType) {
           case 'incomes':
@@ -233,7 +234,7 @@ export default function DataManagementPage() {
       } finally {
         setCsvImportLoading(false);
         setCsvDataToImport(null);
-        setCsvImportType(null); // Reset after operation
+        setCsvImportType(null);
       }
     }
   };
@@ -251,13 +252,16 @@ export default function DataManagementPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
+            <h4 className="font-semibold mb-2 text-base">Export All Data</h4>
             <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
               <Download className="mr-2 h-4 w-4" />
               Export All Data (JSON)
             </Button>
             {jsonImportLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing JSON import...</p>}
           </div>
+          <Separator />
           <div>
+            <h4 className="font-semibold mb-2 text-base">Import All Data</h4>
             <Button onClick={handleJsonImportClick} variant="outline" disabled={anyOperationLoading}>
               <Upload className="mr-2 h-4 w-4" />
               Import All Data (JSON)
@@ -300,7 +304,7 @@ export default function DataManagementPage() {
             <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
             <p className="text-xs text-muted-foreground mt-1">Required headers: `source`, `amount`, `date` (ISO format e.g., YYYY-MM-DDTHH:mm:ss.sssZ).</p>
             <p className="text-xs text-destructive mt-1">Warning: Importing will replace all existing income data.</p>
-            {(anyOperationLoading && csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing income CSV import...</p>}
+            {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing income CSV import...</p>}
           </div>
         </CardContent>
       </Card>
@@ -327,7 +331,7 @@ export default function DataManagementPage() {
             <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
             <p className="text-xs text-muted-foreground mt-1">Required headers: `category`, `amount`, `date` (ISO format).</p>
             <p className="text-xs text-destructive mt-1">Warning: Importing will replace all existing expense data.</p>
-            {(anyOperationLoading && csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing expense CSV import...</p>}
+            {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing expense CSV import...</p>}
           </div>
         </CardContent>
       </Card>
@@ -354,7 +358,7 @@ export default function DataManagementPage() {
             <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
             <p className="text-xs text-muted-foreground mt-1">Required headers: `title`, `date` (ISO format). Optional: `description`.</p>
             <p className="text-xs text-destructive mt-1">Warning: Importing will replace all existing appointment data.</p>
-            {(anyOperationLoading && csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing appointment CSV import...</p>}
+            {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing appointment CSV import...</p>}
           </div>
         </CardContent>
       </Card>
@@ -445,5 +449,4 @@ export default function DataManagementPage() {
     </div>
   );
 }
-
     
