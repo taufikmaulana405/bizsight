@@ -87,7 +87,6 @@ export default function DataManagementPage() {
           const text = e.target?.result;
           if (typeof text === 'string') {
             const parsedData = JSON.parse(text) as AllDataExport;
-            // Basic validation for top-level keys
             if (parsedData && Array.isArray(parsedData.incomes) && Array.isArray(parsedData.expenses) && Array.isArray(parsedData.appointments)) {
               setDataToImportJson(parsedData);
               setIsJsonImportConfirmOpen(true);
@@ -156,7 +155,7 @@ export default function DataManagementPage() {
         headers = ['id', 'category', 'amount', 'date'];
         break;
       case 'appointments':
-        dataToExport = appointments.map(a => ({...a, description: a.description || ""})); // ensure description is string
+        dataToExport = appointments.map(a => ({...a, description: a.description || ""}));
         headers = ['id', 'title', 'description', 'date'];
         break;
     }
@@ -186,7 +185,7 @@ export default function DataManagementPage() {
               let validHeaders = false;
               if (type === 'incomes' && firstRow.source !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'expenses' && firstRow.category !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
-              else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true; // description is optional
+              else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true;
 
               if (validHeaders) {
                 setCsvDataToImport(parsedData);
@@ -247,24 +246,60 @@ export default function DataManagementPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle>JSON Data Management</CardTitle>
-          <CardDescription>Export all your data (incomes, expenses, appointments) as a single JSON file, or import from one. Importing replaces ALL existing data.</CardDescription>
+          <CardTitle>Export Data</CardTitle>
+          <CardDescription>Download your application data in various formats.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* JSON Export */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Export All Data</h4>
+            <h4 className="font-semibold mb-2 text-base">Export All Data (JSON)</h4>
             <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
               <Download className="mr-2 h-4 w-4" />
-              Export All Data (JSON)
+              Export All Data
             </Button>
-            {jsonImportLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing JSON import...</p>}
+            <p className="text-xs text-muted-foreground mt-1">
+              Exports all incomes, expenses, and appointments into a single JSON file.
+            </p>
           </div>
+
           <Separator />
+
+          {/* CSV Exports */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Import All Data</h4>
+            <h4 className="font-semibold mb-2 text-base">Export Specific Data (CSV)</h4>
+            <div className="space-y-3">
+              <div>
+                <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
+                  <FileText className="mr-2 h-4 w-4" /> Export Incomes (CSV)
+                </Button>
+              </div>
+              <div>
+                <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
+                  <FileText className="mr-2 h-4 w-4" /> Export Expenses (CSV)
+                </Button>
+              </div>
+              <div>
+                <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
+                  <FileText className="mr-2 h-4 w-4" /> Export Appointments (CSV)
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Import Data</CardTitle>
+          <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* JSON Import */}
+          <div>
+            <h4 className="font-semibold mb-2 text-base">Import All Data (JSON)</h4>
             <Button onClick={handleJsonImportClick} variant="outline" disabled={anyOperationLoading}>
               <Upload className="mr-2 h-4 w-4" />
-              Import All Data (JSON)
+              Import All Data
             </Button>
             <input
               type="file"
@@ -274,102 +309,60 @@ export default function DataManagementPage() {
               className="hidden"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              <strong className="text-destructive">Warning:</strong> Importing JSON will replace <strong className="text-destructive">all</strong> existing income, expense, and appointment data.
+              <strong className="text-destructive">Warning:</strong> Replaces <strong className="text-destructive">all</strong> existing income, expense, and appointment data.
             </p>
+            {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
           </div>
-        </CardContent>
-      </Card>
 
-      <Separator />
-
-      {/* Income CSV Management Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Income Data (CSV)</CardTitle>
-          <CardDescription>Export or import your income records using CSV files.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-semibold mb-2 text-base">Export Incomes</h4>
-            <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
-              <FileText className="mr-2 h-4 w-4" /> Export Incomes (CSV)
-            </Button>
-          </div>
           <Separator />
+          
+          {/* Income CSV Import */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Import Incomes</h4>
+            <h4 className="font-semibold mb-2 text-base">Import Incomes (CSV)</h4>
             <Button onClick={() => handleCsvImportClick('incomes')} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" /> Import Incomes (CSV)
+              <Upload className="mr-2 h-4 w-4" /> Import Incomes
             </Button>
             <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
-            <p className="text-xs text-muted-foreground mt-1">Required headers: `source`, `amount`, `date` (ISO format e.g., YYYY-MM-DDTHH:mm:ss.sssZ).</p>
-            <p className="text-xs text-destructive mt-1">Warning: Importing will replace all existing income data.</p>
+            <p className="text-xs text-muted-foreground mt-1">Required headers: `source`, `amount`, `date` (ISO format).</p>
+            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
             {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing income CSV import...</p>}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Expense CSV Management Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Expense Data (CSV)</CardTitle>
-          <CardDescription>Export or import your expense records using CSV files.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-semibold mb-2 text-base">Export Expenses</h4>
-            <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
-              <FileText className="mr-2 h-4 w-4" /> Export Expenses (CSV)
-            </Button>
-          </div>
           <Separator />
+
+          {/* Expense CSV Import */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Import Expenses</h4>
+            <h4 className="font-semibold mb-2 text-base">Import Expenses (CSV)</h4>
             <Button onClick={() => handleCsvImportClick('expenses')} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" /> Import Expenses (CSV)
+              <Upload className="mr-2 h-4 w-4" /> Import Expenses
             </Button>
             <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
             <p className="text-xs text-muted-foreground mt-1">Required headers: `category`, `amount`, `date` (ISO format).</p>
-            <p className="text-xs text-destructive mt-1">Warning: Importing will replace all existing expense data.</p>
+            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
             {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing expense CSV import...</p>}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Appointment CSV Management Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Appointment Data (CSV)</CardTitle>
-          <CardDescription>Export or import your appointment records using CSV files.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-semibold mb-2 text-base">Export Appointments</h4>
-            <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
-              <FileText className="mr-2 h-4 w-4" /> Export Appointments (CSV)
-            </Button>
-          </div>
           <Separator />
+
+          {/* Appointment CSV Import */}
           <div>
-            <h4 className="font-semibold mb-2 text-base">Import Appointments</h4>
+            <h4 className="font-semibold mb-2 text-base">Import Appointments (CSV)</h4>
             <Button onClick={() => handleCsvImportClick('appointments')} variant="outline" disabled={anyOperationLoading}>
-              <Upload className="mr-2 h-4 w-4" /> Import Appointments (CSV)
+              <Upload className="mr-2 h-4 w-4" /> Import Appointments
             </Button>
             <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
             <p className="text-xs text-muted-foreground mt-1">Required headers: `title`, `date` (ISO format). Optional: `description`.</p>
-            <p className="text-xs text-destructive mt-1">Warning: Importing will replace all existing appointment data.</p>
+            <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
             {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing appointment CSV import...</p>}
           </div>
         </CardContent>
       </Card>
 
-      <Separator />
-
       <Card className="border-destructive">
         <CardHeader>
           <CardTitle className="text-destructive">Delete All Data</CardTitle>
           <CardDescription>
-            <strong className="text-destructive">Warning: This action is irreversible.</strong> It will permanently delete all income, expense, and appointment records from your account. This cannot be undone.
+            <strong className="text-destructive">Warning: This action is irreversible.</strong> It will permanently delete all income, expense, and appointment records.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -449,4 +442,6 @@ export default function DataManagementPage() {
     </div>
   );
 }
+    
+
     
