@@ -360,7 +360,7 @@ export default function DataManagementPage() {
                 </Button>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full bg-muted hover:bg-muted/80 h-auto w-auto">
+                    <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-accent/20 h-auto w-auto">
                       <Info className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </TooltipTrigger>
@@ -385,7 +385,7 @@ export default function DataManagementPage() {
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full bg-muted hover:bg-muted/80 h-auto w-auto">
+                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-accent/20 h-auto w-auto">
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </TooltipTrigger>
@@ -407,7 +407,7 @@ export default function DataManagementPage() {
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full bg-muted hover:bg-muted/80 h-auto w-auto">
+                       <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-accent/20 h-auto w-auto">
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </TooltipTrigger>
@@ -429,7 +429,7 @@ export default function DataManagementPage() {
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full bg-muted hover:bg-muted/80 h-auto w-auto">
+                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-accent/20 h-auto w-auto">
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </TooltipTrigger>
