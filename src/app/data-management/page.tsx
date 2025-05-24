@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 
 
@@ -321,6 +321,7 @@ export default function DataManagementPage() {
 
 
   return (
+    <TooltipProvider delayDuration={0}>
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -432,16 +433,16 @@ export default function DataManagementPage() {
                   <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
                   </Button>
-                  <Popover>
-                    <PopoverTrigger asChild>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                       <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Info className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto text-sm">
+                    </TooltipTrigger>
+                    <TooltipContent>
                       <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
-                    </PopoverContent>
-                  </Popover>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
                 <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
@@ -470,16 +471,16 @@ export default function DataManagementPage() {
                       <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
-                       <Popover>
-                        <PopoverTrigger asChild>
+                       <Tooltip>
+                        <TooltipTrigger asChild>
                            <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto text-sm">
+                        </TooltipTrigger>
+                        <TooltipContent>
                           <p>Required headers: `source`, `amount`, `date`.</p>
-                        </PopoverContent>
-                      </Popover>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
@@ -502,16 +503,16 @@ export default function DataManagementPage() {
                       <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                       </Button>
-                      <Popover>
-                        <PopoverTrigger asChild>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto text-sm">
+                        </TooltipTrigger>
+                        <TooltipContent>
                           <p>Required headers: `category`, `amount`, `date`.</p>
-                        </PopoverContent>
-                      </Popover>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
@@ -534,16 +535,16 @@ export default function DataManagementPage() {
                       <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
-                      <Popover>
-                        <PopoverTrigger asChild>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                            <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto text-sm">
+                        </TooltipTrigger>
+                        <TooltipContent>
                           <p>Headers: `title`, `date`. Optional: `description`.</p>
-                        </PopoverContent>
-                      </Popover>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
@@ -646,6 +647,7 @@ export default function DataManagementPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+    </TooltipProvider>
   );
 }
     
