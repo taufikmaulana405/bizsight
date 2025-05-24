@@ -15,13 +15,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Moon, Sun, Laptop } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react'; // Added useRef
+import { useEffect, useState, useRef } from 'react';
 
 export function ThemeSwitcher() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null); // Ref for the trigger button
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -31,14 +31,24 @@ export function ThemeSwitcher() {
     return <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-6 w-6" disabled />;
   }
 
+  const handleThemeChange = (newTheme: string) => {
+    setIsTooltipOpen(false); // Close tooltip first
+    triggerRef.current?.blur(); // Then blur the trigger
+    setTheme(newTheme); // Finally, set the theme
+  };
+
   return (
     <Tooltip open={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
-      <DropdownMenu onOpenChange={(dropdownOpenState) => {
-        // If dropdown is closing for any reason (selection, click outside), ensure tooltip also closes
-        if (!dropdownOpenState) {
-          setIsTooltipOpen(false);
-        }
-      }}>
+      <DropdownMenu
+        onOpenChange={(dropdownOpenState) => {
+          // If dropdown is opening or closing, ensure tooltip is closed
+          if (dropdownOpenState) {
+            setIsTooltipOpen(false); // Force close on open
+          } else {
+            setIsTooltipOpen(false); // Force close on close (click outside, escape, etc.)
+          }
+        }}
+      >
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button ref={triggerRef} variant="ghost" size="icon" aria-label="Toggle theme">
@@ -48,15 +58,15 @@ export function ThemeSwitcher() {
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => { setTheme('light'); setIsTooltipOpen(false); triggerRef.current?.blur(); }}>
+          <DropdownMenuItem onClick={() => handleThemeChange('light')}>
             <Sun className="mr-2 h-4 w-4" />
             <span>Light</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setTheme('dark'); setIsTooltipOpen(false); triggerRef.current?.blur(); }}>
+          <DropdownMenuItem onClick={() => handleThemeChange('dark')}>
             <Moon className="mr-2 h-4 w-4" />
             <span>Dark</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setTheme('system'); setIsTooltipOpen(false); triggerRef.current?.blur(); }}>
+          <DropdownMenuItem onClick={() => handleThemeChange('system')}>
             <Laptop className="mr-2 h-4 w-4" />
             <span>System</span>
           </DropdownMenuItem>
@@ -68,4 +78,3 @@ export function ThemeSwitcher() {
     </Tooltip>
   );
 }
-
