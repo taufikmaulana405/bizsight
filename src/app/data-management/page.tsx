@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from '@/lib/utils';
-
 
 type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
 
@@ -59,13 +59,11 @@ export default function DataManagementPage() {
   const [isCsvImportConfirmOpen, setIsCsvImportConfirmOpen] = useState(false);
   const [csvImportLoading, setCsvImportLoading] = useState(false);
 
-  // Drag and drop states
   const [jsonDragActive, setJsonDragActive] = useState(false);
   const [unifiedCsvDragActive, setUnifiedCsvDragActive] = useState(false);
   const [incomeCsvDragActive, setIncomeCsvDragActive] = useState(false);
   const [expenseCsvDragActive, setExpenseCsvDragActive] = useState(false);
   const [appointmentCsvDragActive, setAppointmentCsvDragActive] = useState(false);
-
 
   const handleExportDataJson = () => {
     const dataToExport: AllDataExport = {
@@ -278,7 +276,6 @@ export default function DataManagementPage() {
     }
   };
 
-  // Drag and Drop Handlers
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -292,18 +289,17 @@ export default function DataManagementPage() {
     setDragActive(false);
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>, processFileFn: (file: File | undefined) => void) => {
+  const handleDropJson = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setDragActive(false);
+    setJsonDragActive(false);
     if (anyOperationLoading) return;
-
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-      processFileFn(event.dataTransfer.files[0]);
+      processJsonFile(event.dataTransfer.files[0]);
     }
   };
   
-  const handleDropCsvWithType = (event: React.DragEvent<HTMLDivElement>, setDragActive: React.Dispatch<React.SetStateAction<boolean>>, type: CsvImportType) => {
+  const handleDropCsv = (event: React.DragEvent<HTMLDivElement>, type: CsvImportType, setDragActive: React.Dispatch<React.SetStateAction<boolean>>) => {
     event.preventDefault();
     event.stopPropagation();
     setDragActive(false);
@@ -315,16 +311,19 @@ export default function DataManagementPage() {
   
   const anyOperationLoading = jsonImportLoading || deleteAllLoading || csvImportLoading || dataContextLoading;
 
-  const dropZoneClasses = (dragActive: boolean) => 
+  const dropZoneAccordionContentClasses = (dragActive: boolean) => 
     cn(
-      "p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors",
-      "flex flex-col items-center justify-center space-y-3 min-h-[160px]", // Added min-height and flex properties
-      dragActive ? "border-primary bg-primary/10 text-primary" : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/10",
-      anyOperationLoading ? "cursor-not-allowed opacity-50" : ""
+      "pt-0 border-2 border-dashed rounded-md text-center transition-colors", // pt-0 because AccordionContent already has pb-4
+      "flex flex-col items-center justify-center space-y-3 min-h-[160px]",
+      dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
+      anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
 
+  const defaultAccordionValues = ["json-export", "unified-csv-export", "json-import", "unified-csv-import"];
+
+
   return (
-    <PopoverProvider> {/* Changed from TooltipProvider */}
+    <PopoverProvider>
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -333,63 +332,81 @@ export default function DataManagementPage() {
             <CardTitle>Export Data</CardTitle>
             <CardDescription>Download your application data in various formats.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" />JSON - All Data</h3>
-              <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
-                <Download className="mr-2 h-4 w-4" />
-                Export All Data (JSON)
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
-              </p>
-            </div>
+          <CardContent>
+            <Accordion type="multiple" collapsible defaultValue={defaultAccordionValues} className="w-full">
+              <AccordionItem value="json-export">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <Button onClick={handleExportDataJson} variant="outline" disabled={anyOperationLoading}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export All Data (JSON)
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended for full backups. Exports all incomes, expenses, and appointments into a single JSON file.
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
 
-            <Separator />
+              <AccordionItem value="unified-csv-export">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
+                    <Download className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Exports all data types into a single CSV file with a 'type' column.
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+              
+              <div className="mt-4 grid md:grid-cols-3 gap-x-4"> {/* Using gap-x-4 for accordion items in a row */}
+                <AccordionItem value="incomes-csv-export">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2"><FileText className="h-5 w-5" /> CSV - Incomes</div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
+                      <Download className="mr-2 h-4 w-4" /> Export Incomes
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Exports only income data.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
 
-            <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />CSV - All Data (Unified)</h3>
-              <Button onClick={handleExportAllDataCSV} variant="outline" disabled={anyOperationLoading}>
-                <Download className="mr-2 h-4 w-4" /> Export All Data (Unified CSV)
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Exports all data types into a single CSV file with a 'type' column.
-              </p>
-            </div>
+                <AccordionItem value="expenses-csv-export">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2"><FileText className="h-5 w-5" /> CSV - Expenses</div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
+                      <Download className="mr-2 h-4 w-4" /> Export Expenses
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Exports only expense data.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
 
-            <Separator />
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
-                <Button onClick={() => handleExportCSV('incomes')} variant="outline" disabled={anyOperationLoading}>
-                  <Download className="mr-2 h-4 w-4" /> Export Incomes
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Exports only income data.
-                </p>
+                <AccordionItem value="appointments-csv-export">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2"><FileText className="h-5 w-5" /> CSV - Appointments</div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
+                      <Download className="mr-2 h-4 w-4" /> Export Appointments
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Exports only appointment data.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
               </div>
-
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
-                <Button onClick={() => handleExportCSV('expenses')} variant="outline" disabled={anyOperationLoading}>
-                  <Download className="mr-2 h-4 w-4" /> Export Expenses
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Exports only expense data.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
-                <Button onClick={() => handleExportCSV('appointments')} variant="outline" disabled={anyOperationLoading}>
-                  <Download className="mr-2 h-4 w-4" /> Export Appointments
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Exports only appointment data.
-                </p>
-              </div>
-            </div>
+            </Accordion>
           </CardContent>
         </Card>
 
@@ -398,153 +415,168 @@ export default function DataManagementPage() {
             <CardTitle>Import Data</CardTitle>
             <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div 
-              onDragOver={(e) => handleDragOver(e, setJsonDragActive)}
-              onDragLeave={(e) => handleDragLeave(e, setJsonDragActive)}
-              onDrop={(e) => handleDrop(e, setJsonDragActive, processJsonFile)}
-              className={dropZoneClasses(jsonDragActive)}
-              onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
-            >
-              <PackageOpen className={cn("h-10 w-10", jsonDragActive ? "text-primary" : "text-muted-foreground/50")} />
-              <h3 className="text-lg font-semibold flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" />JSON - All Data</h3>
-              <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                <Upload className="mr-2 h-4 w-4" />
-                Choose JSON File
-              </Button>
-              <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
-              <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
-              <p className="text-xs text-destructive mt-1">
-                Warning: Replaces all existing income, expense, and appointment data.
-              </p>
-              {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
-            </div>
-            
-            <Separator />
+          <CardContent>
+            <Accordion type="multiple" collapsible defaultValue={defaultAccordionValues} className="w-full">
+              <AccordionItem value="json-import">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</div>
+                </AccordionTrigger>
+                <AccordionContent
+                  onDragOver={(e) => handleDragOver(e, setJsonDragActive)}
+                  onDragLeave={(e) => handleDragLeave(e, setJsonDragActive)}
+                  onDrop={handleDropJson}
+                  className={dropZoneAccordionContentClasses(jsonDragActive)}
+                  onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
+                >
+                  <PackageOpen className={cn("h-10 w-10", jsonDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                  <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                    <Upload className="mr-2 h-4 w-4" /> Choose JSON File
+                  </Button>
+                  <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
+                  <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
+                  {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
+                </AccordionContent>
+              </AccordionItem>
 
-            <div
-              onDragOver={(e) => handleDragOver(e, setUnifiedCsvDragActive)}
-              onDragLeave={(e) => handleDragLeave(e, setUnifiedCsvDragActive)}
-              onDrop={(e) => handleDropCsvWithType(e, setUnifiedCsvDragActive, 'all_unified')}
-              className={dropZoneClasses(unifiedCsvDragActive)}
-              onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
-            >
-              <PackageOpen className={cn("h-10 w-10", unifiedCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
-              <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />CSV - All Data (Unified)</h3>
-              <div className="flex items-center justify-center">
-                <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                  <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
-                      <Info className="h-4 w-4 text-muted-foreground" />
+              <AccordionItem value="unified-csv-import">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</div>
+                </AccordionTrigger>
+                <AccordionContent
+                  onDragOver={(e) => handleDragOver(e, setUnifiedCsvDragActive)}
+                  onDragLeave={(e) => handleDragLeave(e, setUnifiedCsvDragActive)}
+                  onDrop={(e) => handleDropCsv(e, 'all_unified', setUnifiedCsvDragActive)}
+                  className={dropZoneAccordionContentClasses(unifiedCsvDragActive)}
+                  onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
+                >
+                  <PackageOpen className={cn("h-10 w-10", unifiedCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                  <div className="flex items-center justify-center">
+                    <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                      <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto text-sm">
-                    <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
-              <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
-              <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-              {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing unified CSV import...</p>}
-            </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto text-sm">
+                        <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
+                  <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
+                  <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
+                  {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                </AccordionContent>
+              </AccordionItem>
 
-            <Separator />
-
-            <div className="grid md:grid-cols-3 gap-6">
-              <div
-                onDragOver={(e) => handleDragOver(e, setIncomeCsvDragActive)}
-                onDragLeave={(e) => handleDragLeave(e, setIncomeCsvDragActive)}
-                onDrop={(e) => handleDropCsvWithType(e, setIncomeCsvDragActive, 'incomes')}
-                className={dropZoneClasses(incomeCsvDragActive)}
-                onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
-              >
-                <PackageOpen className={cn("h-10 w-10", incomeCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
-                <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Incomes</h3>
-                <div className="flex items-center justify-center">
-                  <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
-                  </Button>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
-                        <Info className="h-4 w-4 text-muted-foreground" />
+              <div className="mt-4 grid md:grid-cols-3 gap-x-4"> {/* Using gap-x-4 for accordion items in a row */}
+                <AccordionItem value="incomes-csv-import">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2"><FileText className="h-5 w-5" /> CSV - Incomes</div>
+                  </AccordionTrigger>
+                  <AccordionContent
+                    onDragOver={(e) => handleDragOver(e, setIncomeCsvDragActive)}
+                    onDragLeave={(e) => handleDragLeave(e, setIncomeCsvDragActive)}
+                    onDrop={(e) => handleDropCsv(e, 'incomes', setIncomeCsvDragActive)}
+                    className={dropZoneAccordionContentClasses(incomeCsvDragActive)}
+                    onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
+                  >
+                    <PackageOpen className={cn("h-10 w-10", incomeCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                    <div className="flex items-center justify-center">
+                      <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
+                        <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto text-sm">
-                      <p>Required headers: `source`, `amount`, `date`.</p>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
-                <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
-                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
-                {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
-              </div>
+                       <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto text-sm">
+                          <p>Required headers: `source`, `amount`, `date`.</p>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
+                    <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
+                    <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
+                    {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                  </AccordionContent>
+                </AccordionItem>
 
-              <div
-                onDragOver={(e) => handleDragOver(e, setExpenseCsvDragActive)}
-                onDragLeave={(e) => handleDragLeave(e, setExpenseCsvDragActive)}
-                onDrop={(e) => handleDropCsvWithType(e, setExpenseCsvDragActive, 'expenses')}
-                className={dropZoneClasses(expenseCsvDragActive)}
-                onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
-              >
-                <PackageOpen className={cn("h-10 w-10", expenseCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
-                <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Expenses</h3>
-                <div className="flex items-center justify-center">
-                  <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
-                  </Button>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                       <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
-                        <Info className="h-4 w-4 text-muted-foreground" />
+                <AccordionItem value="expenses-csv-import">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2"><FileText className="h-5 w-5" /> CSV - Expenses</div>
+                  </AccordionTrigger>
+                  <AccordionContent
+                    onDragOver={(e) => handleDragOver(e, setExpenseCsvDragActive)}
+                    onDragLeave={(e) => handleDragLeave(e, setExpenseCsvDragActive)}
+                    onDrop={(e) => handleDropCsv(e, 'expenses', setExpenseCsvDragActive)}
+                    className={dropZoneAccordionContentClasses(expenseCsvDragActive)}
+                    onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
+                  >
+                    <PackageOpen className={cn("h-10 w-10", expenseCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                    <div className="flex items-center justify-center">
+                      <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                        <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto text-sm">
-                      <p>Required headers: `category`, `amount`, `date`.</p>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
-                <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
-                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
-                {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
-              </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto text-sm">
+                          <p>Required headers: `category`, `amount`, `date`.</p>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
+                    <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
+                    <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
+                    {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                  </AccordionContent>
+                </AccordionItem>
 
-              <div
-                onDragOver={(e) => handleDragOver(e, setAppointmentCsvDragActive)}
-                onDragLeave={(e) => handleDragLeave(e, setAppointmentCsvDragActive)}
-                onDrop={(e) => handleDropCsvWithType(e, setAppointmentCsvDragActive, 'appointments')}
-                className={dropZoneClasses(appointmentCsvDragActive)}
-                onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
-              >
-                <PackageOpen className={cn("h-10 w-10", appointmentCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
-                <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />CSV - Appointments</h3>
-                <div className="flex items-center justify-center">
-                  <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
-                  </Button>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
-                        <Info className="h-4 w-4 text-muted-foreground" />
+                <AccordionItem value="appointments-csv-import">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-2"><FileText className="h-5 w-5" /> CSV - Appointments</div>
+                  </AccordionTrigger>
+                  <AccordionContent
+                    onDragOver={(e) => handleDragOver(e, setAppointmentCsvDragActive)}
+                    onDragLeave={(e) => handleDragLeave(e, setAppointmentCsvDragActive)}
+                    onDrop={(e) => handleDropCsv(e, 'appointments', setAppointmentCsvDragActive)}
+                    className={dropZoneAccordionContentClasses(appointmentCsvDragActive)}
+                    onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
+                  >
+                    <PackageOpen className={cn("h-10 w-10", appointmentCsvDragActive ? "text-primary" : "text-muted-foreground/50")} />
+                    <div className="flex items-center justify-center">
+                      <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                        <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto text-sm">
-                      <p>Headers: `title`, `date`. Optional: `description`.</p>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
-                <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
-                <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
-                {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto" onClick={(e) => e.stopPropagation()}>
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto text-sm">
+                          <p>Headers: `title`, `date`. Optional: `description`.</p>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
+                    <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
+                    <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
+                    {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                  </AccordionContent>
+                </AccordionItem>
               </div>
-            </div>
+            </Accordion>
           </CardContent>
         </Card>
 
@@ -645,10 +677,7 @@ export default function DataManagementPage() {
 // Helper component to avoid PopoverProvider re-renders if not strictly necessary or if it's already higher up.
 // For this case, wrapping the whole page seems fine.
 const PopoverProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // In a real app, you might check if a PopoverProvider context already exists.
-  // For shadcn/ui, the Popover itself handles its context, so a global provider isn't usually needed
-  // unless specifically managing open state globally, which we are not doing here.
-  // This custom provider is mainly here because the previous response mentioned TooltipProvider.
-  // Removing it, as Popover usually manages its own context.
   return <>{children}</>;
 };
+
+    
