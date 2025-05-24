@@ -22,6 +22,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
+import { TooltipProvider } from '@/components/ui/tooltip';
+
 
 type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
 
@@ -312,15 +314,15 @@ export default function DataManagementPage() {
 
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
-      "p-6 border-2 border-dashed rounded-md transition-colors",
-      "flex flex-col space-y-3 min-h-[180px]", // Removed text-center, items-center, justify-center
+      "p-4 border-2 border-dashed rounded-md transition-colors", // Changed p-6 to p-4
+      "flex flex-col space-y-3 min-h-[180px]", 
       dragActive ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:border-muted-foreground/25",
       anyOperationLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
     );
 
 
   return (
-    <PopoverProvider>
+    <TooltipProvider>
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -426,7 +428,7 @@ export default function DataManagementPage() {
                 className={dropZoneClasses(unifiedCsvDragActive)}
                 onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
               >
-                <div className="flex items-center"> {/* Removed justify-center */}
+                <div className="flex items-center">
                   <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                     <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
                   </Button>
@@ -462,7 +464,7 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(incomeCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center"> {/* Removed justify-center */}
+                    <div className="flex items-center">
                       <Button onClick={(e) => {e.stopPropagation(); csvIncomeFileInputRef.current?.click();}} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Incomes CSV
                       </Button>
@@ -493,7 +495,7 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(expenseCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center"> {/* Removed justify-center */}
+                    <div className="flex items-center">
                       <Button onClick={(e) => { e.stopPropagation(); csvExpenseFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Expenses CSV
                       </Button>
@@ -524,7 +526,7 @@ export default function DataManagementPage() {
                     className={dropZoneClasses(appointmentCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
                   >
-                    <div className="flex items-center"> {/* Removed justify-center */}
+                    <div className="flex items-center">
                       <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
@@ -640,16 +642,7 @@ export default function DataManagementPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </PopoverProvider>
+    </TooltipProvider>
   );
 }
-
-// Helper component to avoid PopoverProvider re-renders if not strictly necessary or if it's already higher up.
-// For this case, wrapping the whole page seems fine.
-const PopoverProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <>{children}</>;
-};
     
-
-    
-
