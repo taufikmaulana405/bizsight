@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from '@/lib/utils';
 
 
-type CsvImportType = 'incomes' | 'expenses' | 'appointments' | 'all_unified';
+type CsvImportType = 'incomes' | 'expenses' | 'appointments'; // 'all_unified' is handled separately now
 
 export default function DataManagementPage() {
   const { 
@@ -41,29 +41,31 @@ export default function DataManagementPage() {
   } = useData();
   const { toast } = useToast();
   
-  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  // Combined "All Data" import states
+  const allDataFileInputRef = useRef<HTMLInputElement>(null);
+  const [allDataDragActive, setAllDataDragActive] = useState(false);
+  const [isAllDataImportConfirmOpen, setIsAllDataImportConfirmOpen] = useState(false);
+  const [allDataImportLoading, setAllDataImportLoading] = useState(false);
+  const [parsedAllDataToImport, setParsedAllDataToImport] = useState<AllDataExport | Record<string, string>[] | null>(null);
+  const [allDataImportType, setAllDataImportType] = useState<'json' | 'csv' | null>(null);
+
+  // Specific CSV type import states
   const csvIncomeFileInputRef = useRef<HTMLInputElement>(null);
   const csvExpenseFileInputRef = useRef<HTMLInputElement>(null);
   const csvAppointmentFileInputRef = useRef<HTMLInputElement>(null);
-  const csvUnifiedFileInputRef = useRef<HTMLInputElement>(null);
   
-  const [isJsonImportConfirmOpen, setIsJsonImportConfirmOpen] = useState(false);
-  const [dataToImportJson, setDataToImportJson] = useState<AllDataExport | null>(null);
-  const [jsonImportLoading, setJsonImportLoading] = useState(false);
+  const [isSpecificCsvImportConfirmOpen, setIsSpecificCsvImportConfirmOpen] = useState(false);
+  const [specificCsvDataToImport, setSpecificCsvDataToImport] = useState<Record<string, string>[] | null>(null);
+  const [specificCsvImportType, setSpecificCsvImportType] = useState<CsvImportType | null>(null);
+  const [specificCsvImportLoading, setSpecificCsvImportLoading] = useState(false);
 
-  const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false);
-  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
-
-  const [csvImportType, setCsvImportType] = useState<CsvImportType | null>(null);
-  const [csvDataToImport, setCsvDataToImport] = useState<Record<string, string>[] | null>(null);
-  const [isCsvImportConfirmOpen, setIsCsvImportConfirmOpen] = useState(false);
-  const [csvImportLoading, setCsvImportLoading] = useState(false);
-
-  const [jsonDragActive, setJsonDragActive] = useState(false);
-  const [unifiedCsvDragActive, setUnifiedCsvDragActive] = useState(false);
   const [incomeCsvDragActive, setIncomeCsvDragActive] = useState(false);
   const [expenseCsvDragActive, setExpenseCsvDragActive] = useState(false);
   const [appointmentCsvDragActive, setAppointmentCsvDragActive] = useState(false);
+  
+  const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false);
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+
 
   const handleExportDataJson = () => {
     const dataToExport: AllDataExport = {
@@ -84,53 +86,70 @@ export default function DataManagementPage() {
     toast({ title: "JSON Data Exported", description: "Your data has been downloaded as a JSON file." });
   };
 
-  const processJsonFile = (file: File | undefined) => {
-    if (file) {
-      if (file.type !== "application/json") {
-        toast({ title: "Invalid File Type", description: "Please upload a valid JSON file (.json).", variant: "destructive" });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const text = e.target?.result;
-          if (typeof text === 'string') {
-            const parsedData = JSON.parse(text) as AllDataExport;
-            if (parsedData && Array.isArray(parsedData.incomes) && Array.isArray(parsedData.expenses) && Array.isArray(parsedData.appointments)) {
-              setDataToImportJson(parsedData);
-              setIsJsonImportConfirmOpen(true);
-            } else {
-              throw new Error("Invalid JSON file format. Missing required top-level keys: incomes, expenses, appointments.");
-            }
-          }
-        } catch (error: any) {
-          toast({ title: "JSON Import Error", description: error.message || "Failed to parse JSON file or invalid format.", variant: "destructive" });
-          console.error("JSON Import error:", error);
-        } finally {
-          if (jsonFileInputRef.current) jsonFileInputRef.current.value = ""; 
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
+  const processAllDataFile = (file: File | undefined) => {
+    if (!file) return;
 
-  const handleJsonFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    processJsonFile(event.target.files?.[0]);
-  };
-
-  const confirmJsonImportData = async () => {
-    if (dataToImportJson) {
-      setJsonImportLoading(true);
-      setIsJsonImportConfirmOpen(false);
+    const reader = new FileReader();
+    reader.onload = (e) => {
       try {
-        await importAllData(dataToImportJson);
-        toast({ title: "JSON Import Successful", description: "Your data has been imported and replaced." });
-      } catch (error) {
-        toast({ title: "JSON Import Failed", description: "Could not import data. Please check the console.", variant: "destructive" });
-        console.error("JSON Import failed:", error);
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error("Failed to read file content.");
+        }
+
+        if (file.name.endsWith('.json') || file.type === "application/json") {
+          const parsedData = JSON.parse(text) as AllDataExport;
+          if (parsedData && Array.isArray(parsedData.incomes) && Array.isArray(parsedData.expenses) && Array.isArray(parsedData.appointments)) {
+            setParsedAllDataToImport(parsedData);
+            setAllDataImportType('json');
+            setIsAllDataImportConfirmOpen(true);
+          } else {
+            throw new Error("Invalid JSON file format. Missing required top-level keys: incomes, expenses, appointments.");
+          }
+        } else if (file.name.endsWith('.csv') || file.type === "text/csv") {
+          const parsedData = parseCSV(text);
+          if (parsedData.length > 0 && parsedData[0].type !== undefined && parsedData[0].date !== undefined) {
+            setParsedAllDataToImport(parsedData);
+            setAllDataImportType('csv');
+            setIsAllDataImportConfirmOpen(true);
+          } else {
+            throw new Error("Invalid Unified CSV format. Missing required 'type' or 'date' headers, or file is empty.");
+          }
+        } else {
+          throw new Error("Unsupported file type. Please upload a .json or .csv file for all data import.");
+        }
+      } catch (error: any) {
+        toast({ title: "All Data Import Error", description: error.message || "Failed to process file.", variant: "destructive" });
+        console.error("All Data Import error:", error);
       } finally {
-        setJsonImportLoading(false);
-        setDataToImportJson(null);
+        if (allDataFileInputRef.current) allDataFileInputRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+  
+  const handleAllDataFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    processAllDataFile(event.target.files?.[0]);
+  };
+
+  const confirmAllDataImport = async () => {
+    if (parsedAllDataToImport && allDataImportType) {
+      setAllDataImportLoading(true);
+      setIsAllDataImportConfirmOpen(false);
+      try {
+        if (allDataImportType === 'json') {
+          await importAllData(parsedAllDataToImport as AllDataExport);
+        } else if (allDataImportType === 'csv') {
+          await importAllDataFromUnifiedCSV(parsedAllDataToImport as Record<string, string>[]);
+        }
+        toast({ title: "All Data Import Successful", description: `Your data from the ${allDataImportType.toUpperCase()} file has been imported and replaced.` });
+      } catch (error) {
+        toast({ title: "All Data Import Failed", description: `Could not import data from ${allDataImportType!.toUpperCase()} file. Please check the console.`, variant: "destructive" });
+        console.error(`All Data ${allDataImportType!.toUpperCase()} Import failed:`, error);
+      } finally {
+        setAllDataImportLoading(false);
+        setParsedAllDataToImport(null);
+        setAllDataImportType(null);
       }
     }
   };
@@ -193,11 +212,10 @@ export default function DataManagementPage() {
     if (type === 'incomes') return csvIncomeFileInputRef;
     if (type === 'expenses') return csvExpenseFileInputRef;
     if (type === 'appointments') return csvAppointmentFileInputRef;
-    if (type === 'all_unified') return csvUnifiedFileInputRef;
     return null;
   }
 
-  const processCsvFile = (file: File | undefined, type: CsvImportType) => {
+  const processSpecificCsvFile = (file: File | undefined, type: CsvImportType) => {
     if (file) {
       if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
         toast({ title: "Invalid File Type", description: "Please upload a valid CSV file (.csv).", variant: "destructive" });
@@ -215,12 +233,11 @@ export default function DataManagementPage() {
               if (type === 'incomes' && firstRow.source !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'expenses' && firstRow.category !== undefined && firstRow.amount !== undefined && firstRow.date !== undefined) validHeaders = true;
               else if (type === 'appointments' && firstRow.title !== undefined && firstRow.date !== undefined) validHeaders = true;
-              else if (type === 'all_unified' && firstRow.type !== undefined && firstRow.date !== undefined) validHeaders = true; 
 
               if (validHeaders) {
-                setCsvDataToImport(parsedData);
-                setCsvImportType(type);
-                setIsCsvImportConfirmOpen(true);
+                setSpecificCsvDataToImport(parsedData);
+                setSpecificCsvImportType(type);
+                setIsSpecificCsvImportConfirmOpen(true);
               } else {
                  throw new Error(`Invalid CSV format for ${type}. Missing required headers.`);
               }
@@ -240,38 +257,35 @@ export default function DataManagementPage() {
     }
   };
 
-  const handleCsvFileSelected = (event: React.ChangeEvent<HTMLInputElement>, type: CsvImportType) => {
-    processCsvFile(event.target.files?.[0], type);
+  const handleSpecificCsvFileSelected = (event: React.ChangeEvent<HTMLInputElement>, type: CsvImportType) => {
+    processSpecificCsvFile(event.target.files?.[0], type);
   };
   
-  const confirmCsvImportData = async () => {
-    if (csvDataToImport && csvImportType) {
-      setCsvImportLoading(true);
-      setIsCsvImportConfirmOpen(false);
-      const currentType = csvImportType;
+  const confirmSpecificCsvImportData = async () => {
+    if (specificCsvDataToImport && specificCsvImportType) {
+      setSpecificCsvImportLoading(true);
+      setIsSpecificCsvImportConfirmOpen(false);
+      const currentType = specificCsvImportType;
       try {
         switch (currentType) {
           case 'incomes':
-            await importIncomesFromCSV(csvDataToImport);
+            await importIncomesFromCSV(specificCsvDataToImport);
             break;
           case 'expenses':
-            await importExpensesFromCSV(csvDataToImport);
+            await importExpensesFromCSV(specificCsvDataToImport);
             break;
           case 'appointments':
-            await importAppointmentsFromCSV(csvDataToImport);
-            break;
-          case 'all_unified':
-            await importAllDataFromUnifiedCSV(csvDataToImport);
+            await importAppointmentsFromCSV(specificCsvDataToImport);
             break;
         }
-        toast({ title: `${currentType === 'all_unified' ? 'All Data (Unified CSV)' : currentType.charAt(0).toUpperCase() + currentType.slice(1)} Import Successful`, description: `Your ${currentType === 'all_unified' ? 'data has' : currentType + ' data has'} been imported and replaced.` });
+        toast({ title: `${currentType.charAt(0).toUpperCase() + currentType.slice(1)} Import Successful`, description: `Your ${currentType} data has been imported and replaced.` });
       } catch (error) {
         toast({ title: "CSV Import Failed", description: `Could not import ${currentType} data. Please check the console.`, variant: "destructive" });
         console.error(`CSV Import for ${currentType} failed:`, error);
       } finally {
-        setCsvImportLoading(false);
-        setCsvDataToImport(null);
-        setCsvImportType(null);
+        setSpecificCsvImportLoading(false);
+        setSpecificCsvDataToImport(null);
+        setSpecificCsvImportType(null);
       }
     }
   };
@@ -289,27 +303,27 @@ export default function DataManagementPage() {
     setDragActive(false);
   };
 
-  const handleDropJson = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDropAllData = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setJsonDragActive(false);
+    setAllDataDragActive(false);
     if (anyOperationLoading) return;
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-      processJsonFile(event.dataTransfer.files[0]);
+      processAllDataFile(event.dataTransfer.files[0]);
     }
   };
   
-  const handleDropCsv = (event: React.DragEvent<HTMLDivElement>, type: CsvImportType, setDragActive: React.Dispatch<React.SetStateAction<boolean>>) => {
+  const handleDropSpecificCsv = (event: React.DragEvent<HTMLDivElement>, type: CsvImportType, setDragActive: React.Dispatch<React.SetStateAction<boolean>>) => {
     event.preventDefault();
     event.stopPropagation();
     setDragActive(false);
     if (anyOperationLoading) return;
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-        processCsvFile(event.dataTransfer.files[0], type);
+        processSpecificCsvFile(event.dataTransfer.files[0], type);
     }
   }
   
-  const anyOperationLoading = jsonImportLoading || deleteAllLoading || csvImportLoading || dataContextLoading;
+  const anyOperationLoading = allDataImportLoading || deleteAllLoading || specificCsvImportLoading || dataContextLoading;
 
   const dropZoneClasses = (dragActive: boolean) => 
     cn(
@@ -321,6 +335,7 @@ export default function DataManagementPage() {
 
 
   return (
+    <PopoverProvider> {/* Add PopoverProvider at a high level if not already present elsewhere like layout */}
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         
@@ -396,56 +411,39 @@ export default function DataManagementPage() {
             <CardDescription>Upload data from JSON or CSV files. Importing replaces existing data for the selected scope.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* JSON - All Data Import */}
+            {/* All Data Import (JSON or Unified CSV) */}
+            <div className="grid md:grid-cols-1 gap-6"> {/* Changed to md:grid-cols-1 as it's now one section */}
               <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileJson className="h-5 w-5 text-primary" /> JSON - All Data</h3>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                  <Upload className="h-5 w-5 text-primary" /> All Data Import (.json or .csv)
+                </h3>
                 <div
-                  onDragOver={(e) => handleDragOver(e, setJsonDragActive)}
-                  onDragLeave={(e) => handleDragLeave(e, setJsonDragActive)}
-                  onDrop={handleDropJson}
-                  className={dropZoneClasses(jsonDragActive)}
-                  onClick={() => !anyOperationLoading && jsonFileInputRef.current?.click()}
-                >
-                  <Button onClick={(e) => { e.stopPropagation(); jsonFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                    <Upload className="mr-2 h-4 w-4" /> Choose JSON File
-                  </Button>
-                  <input type="file" ref={jsonFileInputRef} onChange={handleJsonFileSelected} accept=".json" className="hidden" />
-                  <p className="text-xs text-muted-foreground">Or drag and drop a JSON file here (.json)</p>
-                  <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-                  {jsonImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing JSON import...</p>}
-                </div>
-              </div>
-
-              {/* CSV - All Data (Unified) Import */}
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> CSV - All Data (Unified)</h3>
-                <div
-                  onDragOver={(e) => handleDragOver(e, setUnifiedCsvDragActive)}
-                  onDragLeave={(e) => handleDragLeave(e, setUnifiedCsvDragActive)}
-                  onDrop={(e) => handleDropCsv(e, 'all_unified', setUnifiedCsvDragActive)}
-                  className={dropZoneClasses(unifiedCsvDragActive)}
-                  onClick={() => !anyOperationLoading && csvUnifiedFileInputRef.current?.click()}
+                  onDragOver={(e) => handleDragOver(e, setAllDataDragActive)}
+                  onDragLeave={(e) => handleDragLeave(e, setAllDataDragActive)}
+                  onDrop={handleDropAllData}
+                  className={dropZoneClasses(allDataDragActive)}
+                  onClick={() => !anyOperationLoading && allDataFileInputRef.current?.click()}
                 >
                   <div className="flex items-center">
-                    <Button onClick={(e) => { e.stopPropagation(); csvUnifiedFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
-                      <Upload className="mr-2 h-4 w-4" /> Choose Unified CSV File
+                    <Button onClick={(e) => { e.stopPropagation(); allDataFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
+                      <Upload className="mr-2 h-4 w-4" /> Choose File (.json or .csv)
                     </Button>
                     <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto text-sm p-2">
-                        <p>Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
-                      </PopoverContent>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto text-sm p-2">
+                          <p><strong>JSON:</strong> Root keys: `incomes`, `expenses`, `appointments`.</p>
+                          <p><strong>CSV:</strong> Unified format. Required headers: `type`, `date`, and other relevant fields (e.g. `amount`, `source`, `category`, `title`).</p>
+                        </PopoverContent>
                     </Popover>
                   </div>
-                  <input type="file" ref={csvUnifiedFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'all_unified')} accept=".csv" className="hidden" />
-                  <p className="text-xs text-muted-foreground">Or drag and drop a CSV file here (.csv)</p>
+                  <input type="file" ref={allDataFileInputRef} onChange={handleAllDataFileSelected} accept=".json,.csv" className="hidden" />
+                  <p className="text-xs text-muted-foreground">Or drag and drop a JSON or Unified CSV file here.</p>
                   <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-                  {(csvImportLoading && csvImportType === 'all_unified') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                  {allDataImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing import...</p>}
                 </div>
               </div>
             </div>
@@ -462,7 +460,7 @@ export default function DataManagementPage() {
                   <div
                     onDragOver={(e) => handleDragOver(e, setIncomeCsvDragActive)}
                     onDragLeave={(e) => handleDragLeave(e, setIncomeCsvDragActive)}
-                    onDrop={(e) => handleDropCsv(e, 'incomes', setIncomeCsvDragActive)}
+                    onDrop={(e) => handleDropSpecificCsv(e, 'incomes', setIncomeCsvDragActive)}
                     className={dropZoneClasses(incomeCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvIncomeFileInputRef.current?.click()}
                   >
@@ -481,10 +479,10 @@ export default function DataManagementPage() {
                         </PopoverContent>
                       </Popover>
                     </div>
-                    <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
+                    <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleSpecificCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                     <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
-                    {(csvImportLoading && csvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                    {(specificCsvImportLoading && specificCsvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
                   </div>
                 </div>
 
@@ -494,7 +492,7 @@ export default function DataManagementPage() {
                   <div
                     onDragOver={(e) => handleDragOver(e, setExpenseCsvDragActive)}
                     onDragLeave={(e) => handleDragLeave(e, setExpenseCsvDragActive)}
-                    onDrop={(e) => handleDropCsv(e, 'expenses', setExpenseCsvDragActive)}
+                    onDrop={(e) => handleDropSpecificCsv(e, 'expenses', setExpenseCsvDragActive)}
                     className={dropZoneClasses(expenseCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvExpenseFileInputRef.current?.click()}
                   >
@@ -513,10 +511,10 @@ export default function DataManagementPage() {
                         </PopoverContent>
                       </Popover>
                     </div>
-                    <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
+                    <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleSpecificCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                     <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
-                    {(csvImportLoading && csvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                    {(specificCsvImportLoading && specificCsvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
                   </div>
                 </div>
 
@@ -526,7 +524,7 @@ export default function DataManagementPage() {
                   <div
                     onDragOver={(e) => handleDragOver(e, setAppointmentCsvDragActive)}
                     onDragLeave={(e) => handleDragLeave(e, setAppointmentCsvDragActive)}
-                    onDrop={(e) => handleDropCsv(e, 'appointments', setAppointmentCsvDragActive)}
+                    onDrop={(e) => handleDropSpecificCsv(e, 'appointments', setAppointmentCsvDragActive)}
                     className={dropZoneClasses(appointmentCsvDragActive)}
                     onClick={() => !anyOperationLoading && csvAppointmentFileInputRef.current?.click()}
                   >
@@ -534,7 +532,7 @@ export default function DataManagementPage() {
                       <Button onClick={(e) => { e.stopPropagation(); csvAppointmentFileInputRef.current?.click(); }} variant="outline" disabled={anyOperationLoading}>
                         <Upload className="mr-2 h-4 w-4" /> Choose Appointments CSV
                       </Button>
-                      <Popover>
+                       <Popover>
                         <PopoverTrigger asChild>
                           <Button variant="ghost" className="ml-2 cursor-help p-1.5 rounded-full hover:bg-secondary/50 h-auto w-auto flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Info className="h-4 w-4 text-muted-foreground" />
@@ -545,10 +543,10 @@ export default function DataManagementPage() {
                         </PopoverContent>
                       </Popover>
                     </div>
-                    <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
+                    <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleSpecificCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                     <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
-                    {(csvImportLoading && csvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                    {(specificCsvImportLoading && specificCsvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
                   </div>
                 </div>
               </div>
@@ -575,50 +573,46 @@ export default function DataManagementPage() {
           </CardContent>
         </Card>
 
-        {/* JSON Import Confirmation Dialog */}
-        <AlertDialog open={isJsonImportConfirmOpen} onOpenChange={setIsJsonImportConfirmOpen}>
+        {/* All Data Import Confirmation Dialog */}
+        <AlertDialog open={isAllDataImportConfirmOpen} onOpenChange={setIsAllDataImportConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center">
                 <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
-                Confirm JSON Data Import
+                Confirm All Data Import
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you absolutely sure you want to import this JSON file? 
+                Are you absolutely sure you want to import this <strong className="font-semibold">{allDataImportType?.toUpperCase()}</strong> file for all data? 
                 <strong className="text-destructive"> This action will permanently delete all your current income, expense, and appointment records and replace them with the data from the selected file.</strong> This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {setDataToImportJson(null); setIsJsonImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmJsonImportData} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogCancel onClick={() => {setParsedAllDataToImport(null); setAllDataImportType(null); setIsAllDataImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmAllDataImport} className="bg-destructive hover:bg-destructive/90">
                 Yes, Overwrite All and Import
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* CSV Import Confirmation Dialog */}
-        <AlertDialog open={isCsvImportConfirmOpen} onOpenChange={setIsCsvImportConfirmOpen}>
+        {/* Specific CSV Import Confirmation Dialog */}
+        <AlertDialog open={isSpecificCsvImportConfirmOpen} onOpenChange={setIsSpecificCsvImportConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center">
                 <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
-                Confirm CSV Data Import for {csvImportType === 'all_unified' ? 'All Data (Unified)' : csvImportType}
+                Confirm CSV Data Import for {specificCsvImportType ? specificCsvImportType.charAt(0).toUpperCase() + specificCsvImportType.slice(1) : ''}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you absolutely sure you want to import this CSV file for <strong className="font-semibold">{csvImportType === 'all_unified' ? 'all data types' : csvImportType}</strong>? 
-                {csvImportType === 'all_unified' ? (
-                  <strong className="text-destructive"> This action will permanently delete all your current income, expense, and appointment records and replace them.</strong>
-                ) : (
-                  <strong className="text-destructive"> This action will permanently delete all your current {csvImportType} records and replace them with the data from the selected file. Data for other categories will not be affected.</strong>
-                )}
+                Are you absolutely sure you want to import this CSV file for <strong className="font-semibold">{specificCsvImportType}</strong>? 
+                <strong className="text-destructive"> This action will permanently delete all your current {specificCsvImportType} records and replace them with the data from the selected file. Data for other categories will not be affected.</strong>
                 This cannot be undone for the selected scope.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {setCsvDataToImport(null); setCsvImportType(null); setIsCsvImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmCsvImportData} className="bg-destructive hover:bg-destructive/90">
-                Yes, Overwrite {csvImportType === 'all_unified' ? 'All Data' : csvImportType} and Import
+              <AlertDialogCancel onClick={() => {setSpecificCsvDataToImport(null); setSpecificCsvImportType(null); setIsSpecificCsvImportConfirmOpen(false);}}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmSpecificCsvImportData} className="bg-destructive hover:bg-destructive/90">
+                Yes, Overwrite {specificCsvImportType} and Import
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -646,6 +640,7 @@ export default function DataManagementPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+    </PopoverProvider>
   );
 }
     
