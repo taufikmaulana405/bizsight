@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,10 +32,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // Removed AlertDialogTrigger as we'll control open state
-import { Pencil, Trash2 } from "lucide-react";
+} from "@/components/ui/alert-dialog";
+import { Pencil, Trash2, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function IncomePage() {
@@ -37,10 +43,16 @@ export default function IncomePage() {
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+
+  const handleAddNew = () => {
+    setEditingIncome(null);
+    setIsFormDialogOpen(true);
+  };
 
   const handleEdit = (income: Income) => {
     setEditingIncome(income);
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to form for editing
+    setIsFormDialogOpen(true);
   };
 
   const handleDeleteInitiate = (income: Income) => {
@@ -70,26 +82,30 @@ export default function IncomePage() {
   };
 
   const handleFormFinish = () => {
-    setEditingIncome(null); // Clear editing state, form will reset to "add new"
+    setEditingIncome(null);
+    setIsFormDialogOpen(false);
   };
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Income Management</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Income Management</h1>
+        <Button onClick={handleAddNew}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Log New Income
+        </Button>
+      </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingIncome ? "Edit Income Entry" : "New Income Entry"}</CardTitle>
-          <CardDescription>
-            {editingIncome ? `Update the details for "${editingIncome.source}".` : "Log a new source of revenue for your business."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingIncome ? "Edit Income Entry" : "New Income Entry"}</DialogTitle>
+            <DialogDescription>
+              {editingIncome ? `Update the details for "${editingIncome.source}".` : "Log a new source of revenue for your business."}
+            </DialogDescription>
+          </DialogHeader>
           <IncomeForm incomeToEdit={editingIncome} onFinish={handleFormFinish} />
-        </CardContent>
-      </Card>
-
-      <Separator className="my-4" />
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -139,7 +155,6 @@ export default function IncomePage() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

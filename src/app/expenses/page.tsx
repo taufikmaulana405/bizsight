@@ -17,6 +17,14 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,9 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ExpensesPage() {
@@ -37,10 +44,16 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+
+  const handleAddNew = () => {
+    setEditingExpense(null);
+    setIsFormDialogOpen(true);
+  };
 
   const handleEdit = (expense: Expense) => {
     setEditingExpense(expense);
-    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    setIsFormDialogOpen(true);
   };
 
   const handleDeleteInitiate = (expense: Expense) => {
@@ -70,26 +83,30 @@ export default function ExpensesPage() {
   };
 
   const handleFormFinish = () => {
-    setEditingExpense(null); 
+    setEditingExpense(null);
+    setIsFormDialogOpen(false);
   };
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Expense Management</h1>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingExpense ? "Edit Expense Entry" : "New Expense Entry"}</CardTitle>
-          <CardDescription>
-            {editingExpense ? `Update the details for "${editingExpense.category}".` : "Log a new expense for your business."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ExpenseForm expenseToEdit={editingExpense} onFinish={handleFormFinish} />
-        </CardContent>
-      </Card>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Expense Management</h1>
+        <Button onClick={handleAddNew}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Log New Expense
+        </Button>
+      </div>
 
-      <Separator className="my-4" />
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingExpense ? "Edit Expense Entry" : "New Expense Entry"}</DialogTitle>
+            <DialogDescription>
+              {editingExpense ? `Update the details for "${editingExpense.category}".` : "Log a new expense for your business."}
+            </DialogDescription>
+          </DialogHeader>
+          <ExpenseForm expenseToEdit={editingExpense} onFinish={handleFormFinish} />
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

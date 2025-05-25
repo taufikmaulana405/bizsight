@@ -66,7 +66,7 @@ export function ExpenseForm({ expenseToEdit, onFinish }: ExpenseFormProps) {
     } else {
       form.reset({
         category: "",
-        amount: 0,
+        amount: undefined, // Use undefined for better placeholder behavior on number input
         date: new Date(),
       });
     }
@@ -102,7 +102,7 @@ export function ExpenseForm({ expenseToEdit, onFinish }: ExpenseFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
         <FormField
           control={form.control}
           name="category"
@@ -123,7 +123,7 @@ export function ExpenseForm({ expenseToEdit, onFinish }: ExpenseFormProps) {
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 75.50" step="0.01" {...field} />
+                <Input type="number" placeholder="e.g., 75.50" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -141,16 +141,16 @@ export function ExpenseForm({ expenseToEdit, onFinish }: ExpenseFormProps) {
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full pl-3 text-left font-normal",
+                        "w-full justify-start text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
                     >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
                       {field.value ? (
                         format(field.value, "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
@@ -170,8 +170,7 @@ export function ExpenseForm({ expenseToEdit, onFinish }: ExpenseFormProps) {
             </FormItem>
           )}
         />
-        <div className="flex space-x-2">
-          <Button type="submit">{isEditing ? "Update Expense" : "Add Expense"}</Button>
+        <div className="flex justify-end space-x-2 pt-4">
           {isEditing && (
             <Button type="button" variant="outline" onClick={() => {
               if (onFinish) onFinish(); 
@@ -179,6 +178,7 @@ export function ExpenseForm({ expenseToEdit, onFinish }: ExpenseFormProps) {
               Cancel
             </Button>
           )}
+          <Button type="submit">{isEditing ? "Update Expense" : "Add Expense"}</Button>
         </div>
       </form>
     </Form>

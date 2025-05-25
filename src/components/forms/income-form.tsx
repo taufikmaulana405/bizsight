@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from "react"; // Added React import
+import React, { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -24,7 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useData, type IncomeFormData } from "@/contexts/data-context"; // Import IncomeFormData
+import { useData, type IncomeFormData } from "@/contexts/data-context";
 import { useToast } from "@/hooks/use-toast";
 import type { Income } from "@/lib/types";
 
@@ -64,10 +64,9 @@ export function IncomeForm({ incomeToEdit, onFinish }: IncomeFormProps) {
         date: new Date(incomeToEdit.date), // Ensure date is a Date object
       });
     } else {
-      // Reset to default "add new" state
       form.reset({
         source: "",
-        amount: 0, // Or a more suitable default like undefined if your input handles it
+        amount: undefined, // Use undefined for better placeholder behavior on number input
         date: new Date(),
       });
     }
@@ -103,7 +102,7 @@ export function IncomeForm({ incomeToEdit, onFinish }: IncomeFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
         <FormField
           control={form.control}
           name="source"
@@ -124,7 +123,7 @@ export function IncomeForm({ incomeToEdit, onFinish }: IncomeFormProps) {
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 1500" step="0.01" {...field} />
+                <Input type="number" placeholder="e.g., 1500" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -142,16 +141,16 @@ export function IncomeForm({ incomeToEdit, onFinish }: IncomeFormProps) {
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full pl-3 text-left font-normal",
+                        "w-full justify-start text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
                     >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
                       {field.value ? (
                         format(field.value, "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
@@ -171,15 +170,15 @@ export function IncomeForm({ incomeToEdit, onFinish }: IncomeFormProps) {
             </FormItem>
           )}
         />
-        <div className="flex space-x-2">
-          <Button type="submit">{isEditing ? "Update Income" : "Add Income"}</Button>
+        <div className="flex justify-end space-x-2 pt-4">
           {isEditing && (
             <Button type="button" variant="outline" onClick={() => {
-              if (onFinish) onFinish(); // This will trigger reset via useEffect in parent
+              if (onFinish) onFinish(); 
             }}>
               Cancel
             </Button>
           )}
+          <Button type="submit">{isEditing ? "Update Income" : "Add Income"}</Button>
         </div>
       </form>
     </Form>
