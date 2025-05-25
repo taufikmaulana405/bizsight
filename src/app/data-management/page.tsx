@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info, FilePieChart } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info, FilePieChart, Loader2 } from 'lucide-react';
 import { useData } from '@/contexts/data-context';
 import { useToast } from "@/hooks/use-toast";
 import type { AllDataExport } from '@/lib/types';
@@ -460,7 +460,12 @@ export default function DataManagementPage() {
                   <input type="file" ref={allDataFileInputRef} onChange={handleAllDataFileSelected} accept=".json,.csv" className="hidden" />
                   <p className="text-xs text-muted-foreground">Or drag and drop a JSON or Unified CSV file here.</p>
                   <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income, expense, and appointment data.</p>
-                  {allDataImportLoading && <p className="text-sm text-muted-foreground mt-2 inline">Processing import...</p>}
+                  {allDataImportLoading && (
+                    <p className="text-sm text-muted-foreground mt-2 inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing import...
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -499,7 +504,12 @@ export default function DataManagementPage() {
                     <input type="file" ref={csvIncomeFileInputRef} onChange={(e) => handleSpecificCsvFileSelected(e, 'incomes')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                     <p className="text-xs text-destructive mt-1">Warning: Replaces all existing income data.</p>
-                    {(specificCsvImportLoading && specificCsvImportType === 'incomes') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                    {(specificCsvImportLoading && specificCsvImportType === 'incomes') && (
+                      <p className="text-sm text-muted-foreground mt-2 inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -531,7 +541,12 @@ export default function DataManagementPage() {
                     <input type="file" ref={csvExpenseFileInputRef} onChange={(e) => handleSpecificCsvFileSelected(e, 'expenses')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                     <p className="text-xs text-destructive mt-1">Warning: Replaces all existing expense data.</p>
-                    {(specificCsvImportLoading && specificCsvImportType === 'expenses') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                    {(specificCsvImportLoading && specificCsvImportType === 'expenses') && (
+                       <p className="text-sm text-muted-foreground mt-2 inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -563,7 +578,12 @@ export default function DataManagementPage() {
                     <input type="file" ref={csvAppointmentFileInputRef} onChange={(e) => handleSpecificCsvFileSelected(e, 'appointments')} accept=".csv" className="hidden" />
                     <p className="text-xs text-muted-foreground">Or drag and drop (.csv)</p>
                     <p className="text-xs text-destructive mt-1">Warning: Replaces all existing appointment data.</p>
-                    {(specificCsvImportLoading && specificCsvImportType === 'appointments') && <p className="text-sm text-muted-foreground mt-2">Processing...</p>}
+                    {(specificCsvImportLoading && specificCsvImportType === 'appointments') && (
+                      <p className="text-sm text-muted-foreground mt-2 inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -583,7 +603,12 @@ export default function DataManagementPage() {
               <Trash2 className="mr-2 h-4 w-4" />
               Delete All My Data
             </Button>
-            {deleteAllLoading && <p className="text-sm text-muted-foreground ml-4 inline">Processing deletion...</p>}
+            {deleteAllLoading && (
+              <p className="text-sm text-muted-foreground ml-4 inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing deletion...
+              </p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               <strong className="text-destructive">Warning:</strong> This action is irreversible. It will permanently delete all income, expense, and appointment records.
             </p>
