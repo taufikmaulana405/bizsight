@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Trash2, FileText, FileJson, Info, FilePieChart } from 'lucide-react';
 import { useData } from '@/contexts/data-context';
 import { useToast } from "@/hooks/use-toast";
 import type { AllDataExport } from '@/lib/types';
@@ -65,6 +65,8 @@ export default function DataManagementPage() {
   
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false);
   const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+
+  const totalRecords = incomes.length + expenses.length + appointments.length;
 
 
   const handleExportDataJson = () => {
@@ -337,6 +339,22 @@ export default function DataManagementPage() {
   return (
       <div className="flex flex-col gap-8">
         <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FilePieChart className="h-6 w-6 text-primary" />
+              Data Summary
+            </CardTitle>
+            <CardDescription>Overview of your current data records.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div><span className="font-semibold">Total Incomes:</span> {incomes.length}</div>
+            <div><span className="font-semibold">Total Expenses:</span> {expenses.length}</div>
+            <div><span className="font-semibold">Total Appointments:</span> {appointments.length}</div>
+            <div><span className="font-semibold">Total Records:</span> {totalRecords}</div>
+          </CardContent>
+        </Card>
         
         <Card>
           <CardHeader>
@@ -411,7 +429,7 @@ export default function DataManagementPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* All Data Import (JSON or Unified CSV) */}
-            <div className="grid md:grid-cols-1 gap-6"> {/* Changed to md:grid-cols-1 as it's now one section */}
+            <div className="grid md:grid-cols-1 gap-6"> 
               <div>
                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                   <Upload className="h-5 w-5 text-primary" /> All Data Import (.json or .csv)
@@ -641,4 +659,6 @@ export default function DataManagementPage() {
       </div>
   );
 }
+    
+
     
