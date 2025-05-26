@@ -21,17 +21,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogDescription as FormDialogDescription, // Renamed to avoid conflict
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
+  AlertDialogDescription as ConfirmDialogDescription, // Renamed to avoid conflict
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle as ConfirmDialogTitle, // Renamed to avoid conflict
 } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
@@ -155,9 +155,9 @@ export default function ExpensesPage() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{editingExpense ? "Edit Expense Entry" : "New Expense Entry"}</DialogTitle>
-            <DialogDescription>
+            <FormDialogDescription>
               {editingExpense ? `Update the details for "${editingExpense.category}".` : "Log a new expense for your business."}
-            </DialogDescription>
+            </FormDialogDescription>
           </DialogHeader>
           <ExpenseForm expenseToEdit={editingExpense} onFinish={handleFormFinish} />
         </DialogContent>
@@ -169,7 +169,7 @@ export default function ExpensesPage() {
           <CardDescription>
             {initialLoading 
               ? "Loading expense entries..."
-              : `Showing all expense entries. Page ${currentPage} of ${totalPages}.`}
+              : `Showing all expense entries.`}
             {!initialLoading && allFetchedExpenses.length === 0 && " No expense entries found."}
           </CardDescription>
         </CardHeader>
@@ -248,11 +248,11 @@ export default function ExpensesPage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <ConfirmDialogTitle>Are you absolutely sure?</ConfirmDialogTitle>
+            <ConfirmDialogDescription>
               This action cannot be undone. This will permanently delete the expense entry for <span className="font-semibold">{expenseToDelete?.category}</span>
               amounting to <span className="font-semibold">{expenseToDelete?.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>.
-            </AlertDialogDescription>
+            </ConfirmDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>

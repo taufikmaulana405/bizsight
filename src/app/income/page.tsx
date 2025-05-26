@@ -21,17 +21,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogDescription as FormDialogDescription, // Renamed to avoid conflict
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
+  AlertDialogDescription as ConfirmDialogDescription, // Renamed to avoid conflict
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle as ConfirmDialogTitle, // Renamed to avoid conflict
 } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
@@ -156,9 +156,9 @@ export default function IncomePage() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{editingIncome ? "Edit Income Entry" : "New Income Entry"}</DialogTitle>
-            <DialogDescription>
+            <FormDialogDescription>
               {editingIncome ? `Update the details for "${editingIncome.source}".` : "Log a new source of revenue for your business."}
-            </DialogDescription>
+            </FormDialogDescription>
           </DialogHeader>
           <IncomeForm incomeToEdit={editingIncome} onFinish={handleFormFinish} />
         </DialogContent>
@@ -170,7 +170,7 @@ export default function IncomePage() {
           <CardDescription>
             {initialLoading 
               ? "Loading income entries..."
-              : `Showing all income entries. Page ${currentPage} of ${totalPages}.`}
+              : `Showing all income entries.`}
             {!initialLoading && allFetchedIncomes.length === 0 && " No income entries found."}
           </CardDescription>
         </CardHeader>
@@ -249,11 +249,11 @@ export default function IncomePage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <ConfirmDialogTitle>Are you absolutely sure?</ConfirmDialogTitle>
+            <ConfirmDialogDescription>
               This action cannot be undone. This will permanently delete the income entry for <span className="font-semibold">{incomeToDelete?.source}</span>
               amounting to <span className="font-semibold">{incomeToDelete?.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>.
-            </AlertDialogDescription>
+            </ConfirmDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
