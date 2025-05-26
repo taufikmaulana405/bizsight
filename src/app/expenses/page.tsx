@@ -36,6 +36,7 @@ import {
 import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from "@/components/ui/input"; // Added Input import
 
 const ITEMS_PER_PAGE = 10;
 type SortableExpenseKeys = 'category' | 'amount' | 'date';
@@ -55,6 +56,7 @@ export default function ExpensesPage() {
   const [initialLoading, setInitialLoading] = useState(true);
 
   const [sortConfig, setSortConfig] = useState<{ key: SortableExpenseKeys | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+  const [searchTerm, setSearchTerm] = useState(''); // Added searchTerm state
 
   const fetchAllExpenses = useCallback(async () => {
     setInitialLoading(true);
@@ -73,23 +75,35 @@ export default function ExpensesPage() {
     fetchAllExpenses();
   }, [fetchAllExpenses]);
 
+  // Reset current page when search term or sort config changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortConfig]);
+
   const requestSort = (key: SortableExpenseKeys) => {
     if (sortConfig.key === key) {
-      // Current column is already being sorted, cycle through directions or turn off
       if (sortConfig.direction === 'ascending') {
         setSortConfig({ key, direction: 'descending' });
-      } else { // direction is 'descending'
-        setSortConfig({ key: null, direction: 'ascending' }); // Turn off sort for this column
+      } else { 
+        setSortConfig({ key: null, direction: 'ascending' }); 
       }
     } else {
-      // New column to sort, start with ascending
       setSortConfig({ key, direction: 'ascending' });
     }
-    setCurrentPage(1);
+    // setCurrentPage(1); // Moved to useEffect with sortConfig dependency
   };
 
+  const filteredExpenses = useMemo(() => {
+    if (!searchTerm) {
+      return allFetchedExpenses;
+    }
+    return allFetchedExpenses.filter(expense =>
+      expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [allFetchedExpenses, searchTerm]);
+
   const sortedExpenses = useMemo(() => {
-    let sortableItems = [...allFetchedExpenses];
+    let sortableItems = [...filteredExpenses]; // Use filteredExpenses here
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key!];
@@ -103,14 +117,14 @@ export default function ExpensesPage() {
           comparison = (valA as number) < (valB as number) ? -1 : (valA as number) > (valB as number) ? 1 : 0;
         } else if (sortConfig.key === 'date') {
           comparison = new Date(valA as Date).getTime() < new Date(valB as Date).getTime() ? -1 : new Date(valA as Date).getTime() > new Date(valB as Date).getTime() ? 1 : 0;
-        } else { // category
+        } else { 
           comparison = String(valA).toLowerCase().localeCompare(String(valB).toLowerCase());
         }
         return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
       });
     }
     return sortableItems;
-  }, [allFetchedExpenses, sortConfig]);
+  }, [filteredExpenses, sortConfig]);
 
 
   const totalPages = useMemo(() => {
@@ -225,16 +239,26 @@ export default function ExpensesPage() {
               ? "Loading expense entries..."
               : `Showing all expense entries.`}
             {!initialLoading && allFetchedExpenses.length === 0 && " No expense entries found."}
+            {!initialLoading && searchTerm && filteredExpenses.length === 0 && allFetchedExpenses.length > 0 && " No entries match your search."}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Input
+              type="search"
+              placeholder="Search by category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
           {initialLoading && allFetchedExpenses.length === 0 ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : currentTableData.length === 0 && !initialLoading ? (
              <p className="text-sm text-muted-foreground text-center py-4">
-              No expense entries found.
+              {searchTerm ? "No expense entries match your search." : "No expense entries found."}
             </p>
           ) : (
             <>

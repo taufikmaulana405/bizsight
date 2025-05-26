@@ -36,6 +36,7 @@ import {
 import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from "@/components/ui/input"; // Added Input import
 
 const ITEMS_PER_PAGE = 10;
 type SortableIncomeKeys = 'source' | 'amount' | 'date';
@@ -55,14 +56,13 @@ export default function IncomePage() {
   const [initialLoading, setInitialLoading] = useState(true);
 
   const [sortConfig, setSortConfig] = useState<{ key: SortableIncomeKeys | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+  const [searchTerm, setSearchTerm] = useState(''); // Added searchTerm state
 
   const fetchAllIncomes = useCallback(async () => {
     setInitialLoading(true);
     try {
       const allIncomesData = await dataContext.getAllIncomes();
       setAllFetchedIncomes(allIncomesData);
-      // Reset current page if allFetchedIncomes changes, e.g. after delete/add/edit
-      // Sort config is preserved unless user clicks header again
       setCurrentPage(1); 
     } catch (error) {
       toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
@@ -75,23 +75,36 @@ export default function IncomePage() {
     fetchAllIncomes();
   }, [fetchAllIncomes]);
 
+  // Reset current page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortConfig]);
+
+
   const requestSort = (key: SortableIncomeKeys) => {
     if (sortConfig.key === key) {
-      // Current column is already being sorted, cycle through directions or turn off
       if (sortConfig.direction === 'ascending') {
         setSortConfig({ key, direction: 'descending' });
-      } else { // direction is 'descending'
-        setSortConfig({ key: null, direction: 'ascending' }); // Turn off sort for this column
+      } else { 
+        setSortConfig({ key: null, direction: 'ascending' }); 
       }
     } else {
-      // New column to sort, start with ascending
       setSortConfig({ key, direction: 'ascending' });
     }
-    setCurrentPage(1);
+    // setCurrentPage(1); // Moved to useEffect with sortConfig dependency
   };
 
+  const filteredIncomes = useMemo(() => {
+    if (!searchTerm) {
+      return allFetchedIncomes;
+    }
+    return allFetchedIncomes.filter(income =>
+      income.source.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [allFetchedIncomes, searchTerm]);
+
   const sortedIncomes = useMemo(() => {
-    let sortableItems = [...allFetchedIncomes];
+    let sortableItems = [...filteredIncomes]; // Use filteredIncomes here
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key!];
@@ -105,14 +118,14 @@ export default function IncomePage() {
           comparison = (valA as number) < (valB as number) ? -1 : (valA as number) > (valB as number) ? 1 : 0;
         } else if (sortConfig.key === 'date') {
           comparison = new Date(valA as Date).getTime() < new Date(valB as Date).getTime() ? -1 : new Date(valA as Date).getTime() > new Date(valB as Date).getTime() ? 1 : 0;
-        } else { // source
+        } else { 
           comparison = String(valA).toLowerCase().localeCompare(String(valB).toLowerCase());
         }
         return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
       });
     }
     return sortableItems;
-  }, [allFetchedIncomes, sortConfig]);
+  }, [filteredIncomes, sortConfig]);
 
   const totalPages = useMemo(() => {
     if (sortedIncomes.length === 0) return 1;
@@ -226,16 +239,26 @@ export default function IncomePage() {
               ? "Loading income entries..."
               : `Showing all income entries.`}
             {!initialLoading && allFetchedIncomes.length === 0 && " No income entries found."}
+            {!initialLoading && searchTerm && filteredIncomes.length === 0 && allFetchedIncomes.length > 0 && " No entries match your search."}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Input
+              type="search"
+              placeholder="Search by source..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
           {initialLoading && allFetchedIncomes.length === 0 ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : currentTableData.length === 0 && !initialLoading ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No income entries found.
+              {searchTerm ? "No income entries match your search." : "No income entries found."}
             </p>
           ) : (
             <>
