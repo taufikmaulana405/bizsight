@@ -21,23 +21,24 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription as FormDialogDescription, // Renamed to avoid conflict
+  DialogDescription as FormDialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription as ConfirmDialogDescription, // Renamed to avoid conflict
+  AlertDialogDescription as ConfirmDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as ConfirmDialogTitle, // Renamed to avoid conflict
+  AlertDialogTitle as ConfirmDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ITEMS_PER_PAGE = 10;
+type SortableIncomeKeys = 'source' | 'amount' | 'date';
 
 export default function IncomePage() {
   const dataContext = useData();
@@ -53,12 +54,16 @@ export default function IncomePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [initialLoading, setInitialLoading] = useState(true);
 
+  const [sortConfig, setSortConfig] = useState<{ key: SortableIncomeKeys | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+
   const fetchAllIncomes = useCallback(async () => {
     setInitialLoading(true);
     try {
       const allIncomesData = await dataContext.getAllIncomes();
       setAllFetchedIncomes(allIncomesData);
-      setCurrentPage(1); // Reset to first page on new data fetch
+      // Reset current page if allFetchedIncomes changes, e.g. after delete/add/edit
+      // Sort config is preserved unless user clicks header again
+      setCurrentPage(1); 
     } catch (error) {
       toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
     } finally {
@@ -70,23 +75,59 @@ export default function IncomePage() {
     fetchAllIncomes();
   }, [fetchAllIncomes]);
 
+  const requestSort = (key: SortableIncomeKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    } else if (sortConfig.key === key && sortConfig.direction === 'descending') {
+      // Optional: Third click could clear sort or cycle back to ascending. For now, just toggle.
+      // For simplicity, let's cycle back to ascending or clear
+      // setSortConfig({ key: null, direction: 'ascending' }); return;
+    }
+    setSortConfig({ key, direction });
+    setCurrentPage(1); 
+  };
+
+  const sortedIncomes = useMemo(() => {
+    let sortableItems = [...allFetchedIncomes];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        const valA = a[sortConfig.key!];
+        const valB = b[sortConfig.key!];
+
+        if (valA === null || valA === undefined) return sortConfig.direction === 'ascending' ? -1 : 1;
+        if (valB === null || valB === undefined) return sortConfig.direction === 'ascending' ? 1 : -1;
+        
+        let comparison = 0;
+        if (sortConfig.key === 'amount') {
+          comparison = (valA as number) < (valB as number) ? -1 : (valA as number) > (valB as number) ? 1 : 0;
+        } else if (sortConfig.key === 'date') {
+          comparison = new Date(valA as Date).getTime() < new Date(valB as Date).getTime() ? -1 : new Date(valA as Date).getTime() > new Date(valB as Date).getTime() ? 1 : 0;
+        } else { // source
+          comparison = String(valA).toLowerCase().localeCompare(String(valB).toLowerCase());
+        }
+        return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
+      });
+    }
+    return sortableItems;
+  }, [allFetchedIncomes, sortConfig]);
+
   const totalPages = useMemo(() => {
-    if (allFetchedIncomes.length === 0) return 1;
-    return Math.ceil(allFetchedIncomes.length / ITEMS_PER_PAGE);
-  }, [allFetchedIncomes]);
+    if (sortedIncomes.length === 0) return 1;
+    return Math.ceil(sortedIncomes.length / ITEMS_PER_PAGE);
+  }, [sortedIncomes]);
 
   const currentTableData = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    return allFetchedIncomes.slice(startIndex, endIndex);
-  }, [allFetchedIncomes, currentPage]);
+    return sortedIncomes.slice(startIndex, endIndex);
+  }, [sortedIncomes, currentPage]);
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages);
     }
   }, [totalPages, currentPage]);
-
 
   const handleAddNew = () => {
     setEditingIncome(null);
@@ -111,7 +152,7 @@ export default function IncomePage() {
           title: "Income Deleted",
           description: `${incomeToDelete.source} was successfully deleted.`,
         });
-        await fetchAllIncomes(); // Refetch all incomes
+        await fetchAllIncomes(); 
       } catch (error) {
         toast({
           title: "Error",
@@ -128,7 +169,7 @@ export default function IncomePage() {
   const handleFormFinish = async () => {
     setEditingIncome(null);
     setIsFormDialogOpen(false);
-    await fetchAllIncomes(); // Refetch all incomes
+    await fetchAllIncomes(); 
   };
   
   const handleNextPage = () => {
@@ -140,6 +181,17 @@ export default function IncomePage() {
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const getSortIcon = (columnKey: SortableIncomeKeys) => {
+    if (sortConfig.key !== columnKey) {
+      return null; 
+    }
+    if (sortConfig.direction === 'ascending') {
+      return <ArrowUp className="ml-1 h-4 w-4 inline-block" />;
+    } else {
+      return <ArrowDown className="ml-1 h-4 w-4 inline-block" />;
     }
   };
 
@@ -177,9 +229,7 @@ export default function IncomePage() {
         <CardContent>
           {initialLoading && allFetchedIncomes.length === 0 ? (
             <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : currentTableData.length === 0 && !initialLoading ? (
             <p className="text-sm text-muted-foreground text-center py-4">
@@ -190,9 +240,15 @@ export default function IncomePage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead onClick={() => requestSort('source')} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      Source {getSortIcon('source')}
+                    </TableHead>
+                    <TableHead onClick={() => requestSort('amount')} className="text-right cursor-pointer hover:bg-muted/50 transition-colors">
+                      Amount {getSortIcon('amount')}
+                    </TableHead>
+                    <TableHead onClick={() => requestSort('date')} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      Date {getSortIcon('date')}
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -216,7 +272,7 @@ export default function IncomePage() {
                   ))}
                 </TableBody>
               </Table>
-              {allFetchedIncomes.length > ITEMS_PER_PAGE && (
+              {sortedIncomes.length > ITEMS_PER_PAGE && (
                 <div className="flex items-center justify-end space-x-2 py-4">
                   <span className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}

@@ -21,23 +21,24 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription as FormDialogDescription, // Renamed to avoid conflict
+  DialogDescription as FormDialogDescription, 
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription as ConfirmDialogDescription, // Renamed to avoid conflict
+  AlertDialogDescription as ConfirmDialogDescription, 
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as ConfirmDialogTitle, // Renamed to avoid conflict
+  AlertDialogTitle as ConfirmDialogTitle, 
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ITEMS_PER_PAGE = 10;
+type SortableExpenseKeys = 'category' | 'amount' | 'date';
 
 export default function ExpensesPage() {
   const dataContext = useData();
@@ -53,12 +54,14 @@ export default function ExpensesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [initialLoading, setInitialLoading] = useState(true);
 
+  const [sortConfig, setSortConfig] = useState<{ key: SortableExpenseKeys | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+
   const fetchAllExpenses = useCallback(async () => {
     setInitialLoading(true);
     try {
       const allExpensesData = await dataContext.getAllExpenses();
       setAllFetchedExpenses(allExpensesData);
-      setCurrentPage(1); // Reset to first page on new data fetch
+      setCurrentPage(1); 
     } catch (error) {
       toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
     } finally {
@@ -70,16 +73,50 @@ export default function ExpensesPage() {
     fetchAllExpenses();
   }, [fetchAllExpenses]);
 
+  const requestSort = (key: SortableExpenseKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+    setCurrentPage(1);
+  };
+
+  const sortedExpenses = useMemo(() => {
+    let sortableItems = [...allFetchedExpenses];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        const valA = a[sortConfig.key!];
+        const valB = b[sortConfig.key!];
+
+        if (valA === null || valA === undefined) return sortConfig.direction === 'ascending' ? -1 : 1;
+        if (valB === null || valB === undefined) return sortConfig.direction === 'ascending' ? 1 : -1;
+        
+        let comparison = 0;
+        if (sortConfig.key === 'amount') {
+          comparison = (valA as number) < (valB as number) ? -1 : (valA as number) > (valB as number) ? 1 : 0;
+        } else if (sortConfig.key === 'date') {
+          comparison = new Date(valA as Date).getTime() < new Date(valB as Date).getTime() ? -1 : new Date(valA as Date).getTime() > new Date(valB as Date).getTime() ? 1 : 0;
+        } else { // category
+          comparison = String(valA).toLowerCase().localeCompare(String(valB).toLowerCase());
+        }
+        return sortConfig.direction === 'ascending' ? comparison : comparison * -1;
+      });
+    }
+    return sortableItems;
+  }, [allFetchedExpenses, sortConfig]);
+
+
   const totalPages = useMemo(() => {
-    if (allFetchedExpenses.length === 0) return 1;
-    return Math.ceil(allFetchedExpenses.length / ITEMS_PER_PAGE);
-  }, [allFetchedExpenses]);
+    if (sortedExpenses.length === 0) return 1;
+    return Math.ceil(sortedExpenses.length / ITEMS_PER_PAGE);
+  }, [sortedExpenses]);
 
   const currentTableData = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    return allFetchedExpenses.slice(startIndex, endIndex);
-  }, [allFetchedExpenses, currentPage]);
+    return sortedExpenses.slice(startIndex, endIndex);
+  }, [sortedExpenses, currentPage]);
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
@@ -110,7 +147,7 @@ export default function ExpensesPage() {
           title: "Expense Deleted",
           description: `${expenseToDelete.category} expense was successfully deleted.`,
         });
-        await fetchAllExpenses(); // Refetch all expenses
+        await fetchAllExpenses(); 
       } catch (error) {
         toast({
           title: "Error",
@@ -127,7 +164,7 @@ export default function ExpensesPage() {
   const handleFormFinish = async () => {
     setEditingExpense(null);
     setIsFormDialogOpen(false);
-    await fetchAllExpenses(); // Refetch all expenses
+    await fetchAllExpenses(); 
   };
 
   const handleNextPage = () => {
@@ -139,6 +176,17 @@ export default function ExpensesPage() {
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const getSortIcon = (columnKey: SortableExpenseKeys) => {
+    if (sortConfig.key !== columnKey) {
+      return null;
+    }
+    if (sortConfig.direction === 'ascending') {
+      return <ArrowUp className="ml-1 h-4 w-4 inline-block" />;
+    } else {
+      return <ArrowDown className="ml-1 h-4 w-4 inline-block" />;
     }
   };
 
@@ -176,9 +224,7 @@ export default function ExpensesPage() {
         <CardContent>
           {initialLoading && allFetchedExpenses.length === 0 ? (
             <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : currentTableData.length === 0 && !initialLoading ? (
              <p className="text-sm text-muted-foreground text-center py-4">
@@ -189,9 +235,15 @@ export default function ExpensesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead onClick={() => requestSort('category')} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      Category {getSortIcon('category')}
+                    </TableHead>
+                    <TableHead onClick={() => requestSort('amount')} className="text-right cursor-pointer hover:bg-muted/50 transition-colors">
+                      Amount {getSortIcon('amount')}
+                    </TableHead>
+                    <TableHead onClick={() => requestSort('date')} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      Date {getSortIcon('date')}
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -215,7 +267,7 @@ export default function ExpensesPage() {
                   ))}
                 </TableBody>
               </Table>
-              {allFetchedExpenses.length > ITEMS_PER_PAGE && (
+              {sortedExpenses.length > ITEMS_PER_PAGE && (
                 <div className="flex items-center justify-end space-x-2 py-4">
                    <span className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}
