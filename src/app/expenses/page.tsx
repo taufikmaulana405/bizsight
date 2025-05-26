@@ -33,10 +33,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle, 
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from "@/components/ui/input"; // Added Input import
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 10;
 type SortableExpenseKeys = 'category' | 'amount' | 'date';
@@ -56,14 +60,19 @@ export default function ExpensesPage() {
   const [initialLoading, setInitialLoading] = useState(true);
 
   const [sortConfig, setSortConfig] = useState<{ key: SortableExpenseKeys | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
-  const [searchTerm, setSearchTerm] = useState(''); // Added searchTerm state
+  
+  // Advanced search states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
 
   const fetchAllExpenses = useCallback(async () => {
     setInitialLoading(true);
     try {
       const allExpensesData = await dataContext.getAllExpenses();
       setAllFetchedExpenses(allExpensesData);
-      setCurrentPage(1); 
     } catch (error) {
       toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
     } finally {
@@ -75,10 +84,9 @@ export default function ExpensesPage() {
     fetchAllExpenses();
   }, [fetchAllExpenses]);
 
-  // Reset current page when search term or sort config changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortConfig]);
+  }, [searchTerm, sortConfig, startDate, endDate, minAmount, maxAmount]);
 
   const requestSort = (key: SortableExpenseKeys) => {
     if (sortConfig.key === key) {
@@ -90,20 +98,51 @@ export default function ExpensesPage() {
     } else {
       setSortConfig({ key, direction: 'ascending' });
     }
-    // setCurrentPage(1); // Moved to useEffect with sortConfig dependency
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setMinAmount('');
+    setMaxAmount('');
+    setStartDate(undefined);
+    setEndDate(undefined);
   };
 
   const filteredExpenses = useMemo(() => {
-    if (!searchTerm) {
-      return allFetchedExpenses;
+    let tempExpenses = [...allFetchedExpenses];
+
+    if (searchTerm) {
+      tempExpenses = tempExpenses.filter(expense =>
+        expense.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-    return allFetchedExpenses.filter(expense =>
-      expense.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [allFetchedExpenses, searchTerm]);
+
+    const min = parseFloat(minAmount);
+    const max = parseFloat(maxAmount);
+
+    if (!isNaN(min)) {
+      tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
+    }
+    if (!isNaN(max)) {
+      tempExpenses = tempExpenses.filter(expense => expense.amount <= max);
+    }
+    
+    if (startDate) {
+      const startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      tempExpenses = tempExpenses.filter(expense => new Date(expense.date) >= startOfDay);
+    }
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      tempExpenses = tempExpenses.filter(expense => new Date(expense.date) <= endOfDay);
+    }
+
+    return tempExpenses;
+  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, startDate, endDate]);
 
   const sortedExpenses = useMemo(() => {
-    let sortableItems = [...filteredExpenses]; // Use filteredExpenses here
+    let sortableItems = [...filteredExpenses];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key!];
@@ -125,7 +164,6 @@ export default function ExpensesPage() {
     }
     return sortableItems;
   }, [filteredExpenses, sortConfig]);
-
 
   const totalPages = useMemo(() => {
     if (sortedExpenses.length === 0) return 1;
@@ -237,28 +275,118 @@ export default function ExpensesPage() {
           <CardDescription>
             {initialLoading 
               ? "Loading expense entries..."
-              : `Showing all expense entries.`}
+              : `Showing expense entries.`}
             {!initialLoading && allFetchedExpenses.length === 0 && " No expense entries found."}
-            {!initialLoading && searchTerm && filteredExpenses.length === 0 && allFetchedExpenses.length > 0 && " No entries match your search."}
+            {!initialLoading && filteredExpenses.length === 0 && allFetchedExpenses.length > 0 && " No entries match your filters."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <Input
-              type="search"
-              placeholder="Search by category..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="mb-6 p-4 border rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Filter Expenses</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-end">
+              <div>
+                <Label htmlFor="search-category" className="text-sm font-medium text-gray-700 dark:text-gray-300">Search Category</Label>
+                <Input
+                  id="search-category"
+                  type="search"
+                  placeholder="Filter by category..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="min-amount" className="text-sm font-medium text-gray-700 dark:text-gray-300">Min Amount</Label>
+                <Input
+                  id="min-amount"
+                  type="number"
+                  placeholder="e.g., 10"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  step="0.01"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="max-amount" className="text-sm font-medium text-gray-700 dark:text-gray-300">Max Amount</Label>
+                <Input
+                  id="max-amount"
+                  type="number"
+                  placeholder="e.g., 100"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                  step="0.01"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="start-date" className="text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="start-date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal mt-1",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="end-date" className="text-sm font-medium text-gray-700 dark:text-gray-300">End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="end-date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal mt-1",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : <span>Pick an end date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      disabled={(date) => startDate ? date < startDate : false}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex items-end">
+                <Button variant="outline" onClick={handleClearFilters} className="w-full mt-1 md:mt-0">
+                  <FilterX className="mr-2 h-4 w-4" /> Clear Filters
+                </Button>
+              </div>
+            </div>
           </div>
+
           {initialLoading && allFetchedExpenses.length === 0 ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : currentTableData.length === 0 && !initialLoading ? (
              <p className="text-sm text-muted-foreground text-center py-4">
-              {searchTerm ? "No expense entries match your search." : "No expense entries found."}
+              {searchTerm || minAmount || maxAmount || startDate || endDate ? "No expense entries match your filters." : "No expense entries found."}
             </p>
           ) : (
             <>
