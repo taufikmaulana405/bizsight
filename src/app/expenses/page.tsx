@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ExpenseForm } from "@/components/forms/expense-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -50,33 +50,42 @@ export default function ExpensesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
 
-  const [showingAll, setShowingAll] = useState(false);
-  const [loadingAll, setLoadingAll] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const displayedExpensesSource = useMemo(() => {
-    return showingAll ? allFetchedExpenses : dataContext.expenses;
-  }, [showingAll, allFetchedExpenses, dataContext.expenses]);
-
-  const totalPages = useMemo(() => {
-    if (!showingAll || displayedExpensesSource.length === 0) return 1;
-    return Math.ceil(displayedExpensesSource.length / ITEMS_PER_PAGE);
-  }, [displayedExpensesSource, showingAll]);
-
-  const currentTableData = useMemo(() => {
-    if (!showingAll) {
-      return displayedExpensesSource; // Show recent items directly
+  const fetchAllExpenses = useCallback(async () => {
+    setInitialLoading(true);
+    try {
+      const allExpensesData = await dataContext.getAllExpenses();
+      setAllFetchedExpenses(allExpensesData);
+      setCurrentPage(1); // Reset to first page on new data fetch
+    } catch (error) {
+      toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
+    } finally {
+      setInitialLoading(false);
     }
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return displayedExpensesSource.slice(startIndex, endIndex);
-  }, [displayedExpensesSource, currentPage, showingAll]);
+  }, [dataContext, toast]);
 
   useEffect(() => {
-    if (showingAll && currentPage > totalPages && totalPages > 0) {
+    fetchAllExpenses();
+  }, [fetchAllExpenses]);
+
+  const totalPages = useMemo(() => {
+    if (allFetchedExpenses.length === 0) return 1;
+    return Math.ceil(allFetchedExpenses.length / ITEMS_PER_PAGE);
+  }, [allFetchedExpenses]);
+
+  const currentTableData = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return allFetchedExpenses.slice(startIndex, endIndex);
+  }, [allFetchedExpenses, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages);
     }
-  }, [totalPages, currentPage, showingAll]);
+  }, [totalPages, currentPage]);
 
   const handleAddNew = () => {
     setEditingExpense(null);
@@ -101,12 +110,7 @@ export default function ExpensesPage() {
           title: "Expense Deleted",
           description: `${expenseToDelete.category} expense was successfully deleted.`,
         });
-        if (showingAll) {
-            setLoadingAll(true);
-            const updatedAllExpenses = await dataContext.getAllExpenses();
-            setAllFetchedExpenses(updatedAllExpenses);
-            setLoadingAll(false);
-        }
+        await fetchAllExpenses(); // Refetch all expenses
       } catch (error) {
         toast({
           title: "Error",
@@ -123,34 +127,8 @@ export default function ExpensesPage() {
   const handleFormFinish = async () => {
     setEditingExpense(null);
     setIsFormDialogOpen(false);
-    if (showingAll) {
-      setLoadingAll(true);
-      const updatedAllExpenses = await dataContext.getAllExpenses();
-      setAllFetchedExpenses(updatedAllExpenses);
-      setLoadingAll(false);
-    }
+    await fetchAllExpenses(); // Refetch all expenses
   };
-
-  const handleToggleShowAll = async () => {
-    if (showingAll) {
-      setShowingAll(false);
-      setCurrentPage(1);
-    } else {
-      setLoadingAll(true);
-      try {
-        const allExpensesData = await dataContext.getAllExpenses();
-        setAllFetchedExpenses(allExpensesData);
-        setShowingAll(true);
-        setCurrentPage(1);
-      } catch (error) {
-        toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
-      } finally {
-        setLoadingAll(false);
-      }
-    }
-  };
-
-  const isLoadingInitialData = dataContext.loading && !showingAll && dataContext.expenses.length === 0;
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
@@ -187,38 +165,24 @@ export default function ExpensesPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Existing Expenses</CardTitle>
-              <CardDescription>
-                 {showingAll 
-                    ? `Showing all expense entries. Page ${currentPage} of ${totalPages}.` 
-                    : "Showing most recent expense entries."}
-                 {!showingAll && dataContext.expenses.length === 0 && !dataContext.loading && " No recent expense entries."}
-              </CardDescription>
-            </div>
-            <Button onClick={handleToggleShowAll} variant="outline" disabled={loadingAll || dataContext.loading}>
-              {loadingAll ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : showingAll ? (
-                <ListRestart className="mr-2 h-4 w-4" />
-              ) : (
-                <Eye className="mr-2 h-4 w-4" />
-              )}
-              {showingAll ? "Show Recent" : "Show All"}
-            </Button>
-          </div>
+          <CardTitle>All Expense Entries</CardTitle>
+          <CardDescription>
+            {initialLoading 
+              ? "Loading expense entries..."
+              : `Showing all expense entries. Page ${currentPage} of ${totalPages}.`}
+            {!initialLoading && allFetchedExpenses.length === 0 && " No expense entries found."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingInitialData ? (
+          {initialLoading && allFetchedExpenses.length === 0 ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : currentTableData.length === 0 ? (
+          ) : currentTableData.length === 0 && !initialLoading ? (
              <p className="text-sm text-muted-foreground text-center py-4">
-              {showingAll ? "No expense entries found in 'Show All' view." : "No recent expense entries. Try 'Show All'."}
+              No expense entries found.
             </p>
           ) : (
             <>
@@ -251,7 +215,7 @@ export default function ExpensesPage() {
                   ))}
                 </TableBody>
               </Table>
-              {showingAll && displayedExpensesSource.length > ITEMS_PER_PAGE && (
+              {allFetchedExpenses.length > ITEMS_PER_PAGE && (
                 <div className="flex items-center justify-end space-x-2 py-4">
                    <span className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}
@@ -260,7 +224,7 @@ export default function ExpensesPage() {
                     variant="outline"
                     size="sm"
                     onClick={handlePreviousPage}
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || initialLoading}
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
@@ -269,7 +233,7 @@ export default function ExpensesPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || initialLoading}
                   >
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />

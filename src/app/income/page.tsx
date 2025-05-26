@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { IncomeForm } from "@/components/forms/income-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -50,34 +50,42 @@ export default function IncomePage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   
-  const [showingAll, setShowingAll] = useState(false);
-  const [loadingAll, setLoadingAll] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  // displayedIncomes will either be the recent list or the full "allFetchedIncomes"
-  const displayedIncomesSource = useMemo(() => {
-    return showingAll ? allFetchedIncomes : dataContext.incomes;
-  }, [showingAll, allFetchedIncomes, dataContext.incomes]);
-
-  const totalPages = useMemo(() => {
-    if (!showingAll || displayedIncomesSource.length === 0) return 1;
-    return Math.ceil(displayedIncomesSource.length / ITEMS_PER_PAGE);
-  }, [displayedIncomesSource, showingAll]);
-
-  const currentTableData = useMemo(() => {
-    if (!showingAll) {
-      return displayedIncomesSource; // Show recent items directly
+  const fetchAllIncomes = useCallback(async () => {
+    setInitialLoading(true);
+    try {
+      const allIncomesData = await dataContext.getAllIncomes();
+      setAllFetchedIncomes(allIncomesData);
+      setCurrentPage(1); // Reset to first page on new data fetch
+    } catch (error) {
+      toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
+    } finally {
+      setInitialLoading(false);
     }
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return displayedIncomesSource.slice(startIndex, endIndex);
-  }, [displayedIncomesSource, currentPage, showingAll]);
+  }, [dataContext, toast]);
 
   useEffect(() => {
-    if (showingAll && currentPage > totalPages && totalPages > 0) {
+    fetchAllIncomes();
+  }, [fetchAllIncomes]);
+
+  const totalPages = useMemo(() => {
+    if (allFetchedIncomes.length === 0) return 1;
+    return Math.ceil(allFetchedIncomes.length / ITEMS_PER_PAGE);
+  }, [allFetchedIncomes]);
+
+  const currentTableData = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return allFetchedIncomes.slice(startIndex, endIndex);
+  }, [allFetchedIncomes, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages);
     }
-  }, [totalPages, currentPage, showingAll]);
+  }, [totalPages, currentPage]);
 
 
   const handleAddNew = () => {
@@ -103,12 +111,7 @@ export default function IncomePage() {
           title: "Income Deleted",
           description: `${incomeToDelete.source} was successfully deleted.`,
         });
-        if (showingAll) { // If showing all, refetch all to update paginated data
-          setLoadingAll(true);
-          const updatedAllIncomes = await dataContext.getAllIncomes();
-          setAllFetchedIncomes(updatedAllIncomes);
-          setLoadingAll(false);
-        }
+        await fetchAllIncomes(); // Refetch all incomes
       } catch (error) {
         toast({
           title: "Error",
@@ -125,35 +128,9 @@ export default function IncomePage() {
   const handleFormFinish = async () => {
     setEditingIncome(null);
     setIsFormDialogOpen(false);
-    if (showingAll) { // If showing all, refetch to ensure new/updated item is in the paginated list
-        setLoadingAll(true);
-        const updatedAllIncomes = await dataContext.getAllIncomes();
-        setAllFetchedIncomes(updatedAllIncomes);
-        setLoadingAll(false);
-    }
-  };
-
-  const handleToggleShowAll = async () => {
-    if (showingAll) {
-      setShowingAll(false);
-      setCurrentPage(1); // Reset to first page when switching to recent
-    } else {
-      setLoadingAll(true);
-      try {
-        const allIncomesData = await dataContext.getAllIncomes();
-        setAllFetchedIncomes(allIncomesData);
-        setShowingAll(true);
-        setCurrentPage(1); // Reset to first page
-      } catch (error) {
-        toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
-      } finally {
-        setLoadingAll(false);
-      }
-    }
+    await fetchAllIncomes(); // Refetch all incomes
   };
   
-  const isLoadingInitialData = dataContext.loading && !showingAll && dataContext.incomes.length === 0;
-
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
@@ -189,38 +166,24 @@ export default function IncomePage() {
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Existing Incomes</CardTitle>
-              <CardDescription>
-                {showingAll 
-                  ? `Showing all income entries. Page ${currentPage} of ${totalPages}.` 
-                  : "Showing most recent income entries."}
-                {!showingAll && dataContext.incomes.length === 0 && !dataContext.loading && " No recent income entries."}
-              </CardDescription>
-            </div>
-            <Button onClick={handleToggleShowAll} variant="outline" disabled={loadingAll || dataContext.loading}>
-              {loadingAll ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : showingAll ? (
-                <ListRestart className="mr-2 h-4 w-4" />
-              ) : (
-                <Eye className="mr-2 h-4 w-4" />
-              )}
-              {showingAll ? "Show Recent" : "Show All"}
-            </Button>
-          </div>
+          <CardTitle>All Income Entries</CardTitle>
+          <CardDescription>
+            {initialLoading 
+              ? "Loading income entries..."
+              : `Showing all income entries. Page ${currentPage} of ${totalPages}.`}
+            {!initialLoading && allFetchedIncomes.length === 0 && " No income entries found."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingInitialData ? (
+          {initialLoading && allFetchedIncomes.length === 0 ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : currentTableData.length === 0 ? (
+          ) : currentTableData.length === 0 && !initialLoading ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {showingAll ? "No income entries found in 'Show All' view." : "No recent income entries. Try 'Show All'."}
+              No income entries found.
             </p>
           ) : (
             <>
@@ -253,7 +216,7 @@ export default function IncomePage() {
                   ))}
                 </TableBody>
               </Table>
-              {showingAll && displayedIncomesSource.length > ITEMS_PER_PAGE && (
+              {allFetchedIncomes.length > ITEMS_PER_PAGE && (
                 <div className="flex items-center justify-end space-x-2 py-4">
                   <span className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}
@@ -262,7 +225,7 @@ export default function IncomePage() {
                     variant="outline"
                     size="sm"
                     onClick={handlePreviousPage}
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || initialLoading}
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
@@ -271,7 +234,7 @@ export default function IncomePage() {
                     variant="outline"
                     size="sm"
                     onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || initialLoading}
                   >
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />
