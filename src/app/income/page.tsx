@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IncomeForm } from "@/components/forms/income-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
@@ -33,17 +33,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function IncomePage() {
-  const { incomes, deleteIncome, loading } = useData();
+  const dataContext = useData();
   const { toast } = useToast();
+
+  const [displayedIncomes, setDisplayedIncomes] = useState<Income[]>([]);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
+  
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  
+  const [showingAll, setShowingAll] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  useEffect(() => {
+    if (!showingAll && !dataContext.loading) {
+      setDisplayedIncomes(dataContext.incomes);
+    }
+  }, [dataContext.incomes, showingAll, dataContext.loading]);
 
   const handleAddNew = () => {
     setEditingIncome(null);
@@ -63,11 +75,16 @@ export default function IncomePage() {
   const handleDeleteConfirm = async () => {
     if (incomeToDelete) {
       try {
-        await deleteIncome(incomeToDelete.id);
+        await dataContext.deleteIncome(incomeToDelete.id);
         toast({
           title: "Income Deleted",
           description: `${incomeToDelete.source} was successfully deleted.`,
         });
+        // If showing all, and the deleted item was in the displayed list, refetch all to update.
+        // Otherwise, the snapshot will handle the update for the recent list.
+        if (showingAll) {
+            handleToggleShowAll(); // This will refetch all or reset to recent based on current state
+        }
       } catch (error) {
         toast({
           title: "Error",
@@ -84,7 +101,34 @@ export default function IncomePage() {
   const handleFormFinish = () => {
     setEditingIncome(null);
     setIsFormDialogOpen(false);
+    // If showing all and an item was added/edited, it might be good to refresh the "all" list
+    // or rely on the user to toggle if strict data consistency is needed for the "all" view.
+    // For now, adding/editing an item will reflect in the "recent" list via snapshot.
+    // If "all" is shown, the change might not appear without toggling.
   };
+
+  const handleToggleShowAll = async () => {
+    if (showingAll) {
+      // Switch to showing recent
+      setDisplayedIncomes(dataContext.incomes);
+      setShowingAll(false);
+    } else {
+      // Switch to showing all
+      setLoadingAll(true);
+      try {
+        const allIncomes = await dataContext.getAllIncomes();
+        setDisplayedIncomes(allIncomes);
+        setShowingAll(true);
+      } catch (error) {
+        toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
+      } finally {
+        setLoadingAll(false);
+      }
+    }
+  };
+  
+  const isLoadingInitialData = dataContext.loading && displayedIncomes.length === 0;
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -109,18 +153,37 @@ export default function IncomePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Existing Incomes</CardTitle>
-          <CardDescription>View, edit, or delete your recorded income entries.</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Existing Incomes</CardTitle>
+              <CardDescription>
+                {showingAll ? "Showing all income entries." : "Showing most recent income entries."}
+                {!showingAll && dataContext.incomes.length === 0 && !dataContext.loading && " No recent income entries."}
+              </CardDescription>
+            </div>
+            <Button onClick={handleToggleShowAll} variant="outline" disabled={loadingAll || dataContext.loading}>
+              {loadingAll ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : showingAll ? (
+                <ListRestart className="mr-2 h-4 w-4" />
+              ) : (
+                <Eye className="mr-2 h-4 w-4" />
+              )}
+              {showingAll ? "Show Recent" : "Show All"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoadingInitialData ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : incomes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No income entries recorded yet.</p>
+          ) : displayedIncomes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {showingAll ? "No income entries found." : "No recent income entries. Try 'Show All'."}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -132,7 +195,7 @@ export default function IncomePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {incomes.map((income) => (
+                {displayedIncomes.map((income) => (
                   <TableRow key={income.id}>
                     <TableCell className="font-medium">{income.source}</TableCell>
                     <TableCell className="text-right">

@@ -17,7 +17,7 @@ import {
   updateDoc,
   deleteDoc,
   writeBatch,
-  where // For deleting specific types during CSV import
+  limit as firestoreLimit
 } from 'firebase/firestore';
 
 // Define the shape of income data for forms (matches IncomeFormValues)
@@ -41,24 +41,34 @@ export interface AppointmentFormData {
   description?: string;
 }
 
+const RECENT_ITEMS_LIMIT = 15;
 
 interface DataContextType {
-  incomes: Income[];
-  expenses: Expense[];
+  incomes: Income[]; // Will hold the limited list for real-time updates
+  expenses: Expense[]; // Will hold the limited list for real-time updates
   appointments: Appointment[];
+  
   addIncome: (income: IncomeFormData) => Promise<void>;
   updateIncome: (id: string, incomeData: IncomeFormData) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
+  getAllIncomes: () => Promise<Income[]>; // For "Show All"
+
   addExpense: (expense: ExpenseFormData) => Promise<void>;
   updateExpense: (id: string, expenseData: ExpenseFormData) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  addAppointment: (appointment: AppointmentFormData) => Promise<void>; // Use AppointmentFormData
+  getAllExpenses: () => Promise<Expense[]>; // For "Show All"
+
+  addAppointment: (appointment: AppointmentFormData) => Promise<void>;
+  
   importAllData: (data: AllDataExport) => Promise<void>;
   deleteAllUserData: () => Promise<void>;
-  totalRevenue: number;
-  totalExpenses: number;
+  
+  totalRevenue: number; // Will be calculated from a one-time full fetch
+  totalExpenses: number; // Will be calculated from a one-time full fetch
   totalProfit: number;
-  loading: boolean;
+  
+  loading: boolean; // Global loading state
+  
   importIncomesFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
   importExpensesFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
   importAppointmentsFromCSV: (csvData: Record<string, string>[]) => Promise<void>;
@@ -71,67 +81,92 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [totalExpenses, setTotalExpenses] = useState<number>(0);
+  
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
+
     const incomesCol = collection(db, 'incomes');
     const expensesCol = collection(db, 'expenses');
     const appointmentsCol = collection(db, 'appointments');
 
-    const qIncomes = query(incomesCol, orderBy("date", "desc"));
-    const qExpenses = query(expensesCol, orderBy("date", "desc"));
-    const qAppointments = query(appointmentsCol, orderBy("date", "asc"));
+    // Snapshots for limited, real-time lists
+    const qIncomesRecent = query(incomesCol, orderBy("date", "desc"), firestoreLimit(RECENT_ITEMS_LIMIT));
+    const qExpensesRecent = query(expensesCol, orderBy("date", "desc"), firestoreLimit(RECENT_ITEMS_LIMIT));
+    const qAppointmentsAll = query(appointmentsCol, orderBy("date", "asc")); // Appointments typically show all or by date range
 
-    const unsubIncomes = onSnapshot(qIncomes, (snapshot) => {
+    const unsubIncomes = onSnapshot(qIncomesRecent, (snapshot) => {
+      if (!active) return;
       setIncomes(snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         date: (doc.data().date as Timestamp).toDate(),
       } as Income)));
-    }, (error) => {
-      console.error("Error fetching incomes: ", error);
-    });
+    }, (error) => console.error("Error fetching recent incomes: ", error));
 
-    const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
+    const unsubExpenses = onSnapshot(qExpensesRecent, (snapshot) => {
+      if (!active) return;
       setExpenses(snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         date: (doc.data().date as Timestamp).toDate(),
       } as Expense)));
-    }, (error) => {
-      console.error("Error fetching expenses: ", error);
-    });
+    }, (error) => console.error("Error fetching recent expenses: ", error));
     
-    const unsubAppointments = onSnapshot(qAppointments, (snapshot) => {
+    const unsubAppointments = onSnapshot(qAppointmentsAll, (snapshot) => {
+      if (!active) return;
       setAppointments(snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         date: (doc.data().date as Timestamp).toDate(),
       } as Appointment)));
-    }, (error) => {
-      console.error("Error fetching appointments: ", error);
-    });
+    }, (error) => console.error("Error fetching appointments: ", error));
     
-    const initialLoadPromises = [
-      getDocs(qIncomes),
-      getDocs(qExpenses),
-      getDocs(qAppointments),
-    ];
+    // One-time fetch for all incomes and expenses to calculate accurate totals
+    const fetchAllForTotals = async () => {
+      try {
+        const allIncomesSnapshot = await getDocs(query(incomesCol, orderBy("date", "desc")));
+        const allExpensesSnapshot = await getDocs(query(expensesCol, orderBy("date", "desc")));
+        
+        if (!active) return;
 
-    Promise.all(initialLoadPromises)
-      .then(() => setLoading(false))
-      .catch(error => {
-        console.error("Error fetching initial data snapshot: ", error);
-        setLoading(false);
-      });
+        const allIncomesData = allIncomesSnapshot.docs.map(doc => doc.data() as Omit<Income, 'id'>);
+        const allExpensesData = allExpensesSnapshot.docs.map(doc => doc.data() as Omit<Expense, 'id'>);
+
+        setTotalRevenue(allIncomesData.reduce((sum, income) => sum + income.amount, 0));
+        setTotalExpenses(allExpensesData.reduce((sum, expense) => sum + expense.amount, 0));
+        
+      } catch (error) {
+        console.error("Error fetching all data for totals: ", error);
+      }
+    };
+
+    Promise.all([
+      new Promise(resolve => onSnapshot(qIncomesRecent, () => resolve(null), () => resolve(null))), // Wait for first snapshot
+      new Promise(resolve => onSnapshot(qExpensesRecent, () => resolve(null), () => resolve(null))),
+      new Promise(resolve => onSnapshot(qAppointmentsAll, () => resolve(null), () => resolve(null))),
+      fetchAllForTotals()
+    ]).then(() => {
+      if (active) setLoading(false);
+    }).catch(error => {
+      console.error("Error during initial data load: ", error);
+      if (active) setLoading(false);
+    });
 
     return () => {
+      active = false;
       unsubIncomes();
       unsubExpenses();
       unsubAppointments();
     };
   }, []);
+
+  const totalProfit = useMemo(() => totalRevenue - totalExpenses, [totalRevenue, totalExpenses]);
 
   const addIncome = useCallback(async (income: IncomeFormData) => {
     try {
@@ -139,6 +174,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...income,
         date: Timestamp.fromDate(income.date),
       });
+      // Snapshot should update the limited list if the new item falls within criteria
+      // For totals, they are not real-time after initial load. A page refresh would update them.
     } catch (error) {
       console.error("Error adding income: ", error);
       throw error;
@@ -166,6 +203,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error("Error deleting income: ", error);
       throw error;
     }
+  }, []);
+
+  const getAllIncomes = useCallback(async (): Promise<Income[]> => {
+    const allIncomesSnapshot = await getDocs(query(collection(db, 'incomes'), orderBy("date", "desc")));
+    return allIncomesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: (doc.data().date as Timestamp).toDate(),
+    } as Income));
   }, []);
 
   const addExpense = useCallback(async (expense: ExpenseFormData) => {
@@ -202,13 +248,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw error;
     }
   }, []);
+
+  const getAllExpenses = useCallback(async (): Promise<Expense[]> => {
+    const allExpensesSnapshot = await getDocs(query(collection(db, 'expenses'), orderBy("date", "desc")));
+    return allExpensesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: (doc.data().date as Timestamp).toDate(),
+    } as Expense));
+  }, []);
   
   const addAppointment = useCallback(async (appointment: AppointmentFormData) => {
     try {
       await addDoc(collection(db, 'appointments'), {
         ...appointment,
         date: Timestamp.fromDate(appointment.date),
-        description: appointment.description || "", // Ensure description is always a string
+        description: appointment.description || "",
       });
     } catch (error) {
       console.error("Error adding appointment: ", error);
@@ -262,7 +317,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
       await addBatch.commit();
-
+      // After import, totals are stale. A page refresh would be needed, or explicitly refetch totals.
+      // For simplicity, not re-fetching totals here.
     } catch (error) {
       console.error("Error importing data: ", error);
       throw error;
@@ -274,6 +330,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await deleteCollectionBatch('incomes');
       await deleteCollectionBatch('expenses');
       await deleteCollectionBatch('appointments');
+      setTotalRevenue(0); // Reset totals in UI
+      setTotalExpenses(0);
     } catch (error) {
       console.error("Error deleting all user data: ", error);
       throw error;
@@ -286,7 +344,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const batch = writeBatch(db);
       const incomesCol = collection(db, 'incomes');
       csvData.forEach(row => {
-        const date = new Date(row.date); // Assumes date is ISO string
+        const date = new Date(row.date); 
         const amount = parseFloat(row.amount);
         if (row.source && !isNaN(amount) && !isNaN(date.getTime())) {
           batch.set(doc(incomesCol), {
@@ -420,11 +478,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-
-  const totalRevenue = useMemo(() => incomes.reduce((sum, income) => sum + income.amount, 0), [incomes]);
-  const totalExpenses = useMemo(() => expenses.reduce((sum, expense) => sum + expense.amount, 0), [expenses]);
-  const totalProfit = useMemo(() => totalRevenue - totalExpenses, [totalRevenue, totalExpenses]);
-
   return (
     <DataContext.Provider value={{ 
       incomes, 
@@ -433,9 +486,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addIncome,
       updateIncome,
       deleteIncome,
+      getAllIncomes,
       addExpense, 
       updateExpense,
       deleteExpense,
+      getAllExpenses,
       addAppointment,
       importAllData,
       deleteAllUserData,
@@ -460,4 +515,3 @@ export const useData = (): DataContextType => {
   }
   return context;
 };
-

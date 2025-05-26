@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExpenseForm } from "@/components/forms/expense-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
@@ -22,7 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -34,17 +33,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ExpensesPage() {
-  const { expenses, deleteExpense, loading } = useData();
+  const dataContext = useData();
   const { toast } = useToast();
+
+  const [displayedExpenses, setDisplayedExpenses] = useState<Expense[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+
+  const [showingAll, setShowingAll] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  useEffect(() => {
+    if (!showingAll && !dataContext.loading) {
+      setDisplayedExpenses(dataContext.expenses);
+    }
+  }, [dataContext.expenses, showingAll, dataContext.loading]);
 
   const handleAddNew = () => {
     setEditingExpense(null);
@@ -64,11 +75,14 @@ export default function ExpensesPage() {
   const handleDeleteConfirm = async () => {
     if (expenseToDelete) {
       try {
-        await deleteExpense(expenseToDelete.id);
+        await dataContext.deleteExpense(expenseToDelete.id);
         toast({
           title: "Expense Deleted",
           description: `${expenseToDelete.category} expense was successfully deleted.`,
         });
+        if (showingAll) {
+            handleToggleShowAll(); 
+        }
       } catch (error) {
         toast({
           title: "Error",
@@ -86,6 +100,26 @@ export default function ExpensesPage() {
     setEditingExpense(null);
     setIsFormDialogOpen(false);
   };
+
+  const handleToggleShowAll = async () => {
+    if (showingAll) {
+      setDisplayedExpenses(dataContext.expenses);
+      setShowingAll(false);
+    } else {
+      setLoadingAll(true);
+      try {
+        const allExpenses = await dataContext.getAllExpenses();
+        setDisplayedExpenses(allExpenses);
+        setShowingAll(true);
+      } catch (error) {
+        toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
+      } finally {
+        setLoadingAll(false);
+      }
+    }
+  };
+
+  const isLoadingInitialData = dataContext.loading && displayedExpenses.length === 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -110,18 +144,37 @@ export default function ExpensesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Existing Expenses</CardTitle>
-          <CardDescription>View, edit, or delete your recorded expense entries.</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Existing Expenses</CardTitle>
+              <CardDescription>
+                 {showingAll ? "Showing all expense entries." : "Showing most recent expense entries."}
+                 {!showingAll && dataContext.expenses.length === 0 && !dataContext.loading && " No recent expense entries."}
+              </CardDescription>
+            </div>
+            <Button onClick={handleToggleShowAll} variant="outline" disabled={loadingAll || dataContext.loading}>
+              {loadingAll ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : showingAll ? (
+                <ListRestart className="mr-2 h-4 w-4" />
+              ) : (
+                <Eye className="mr-2 h-4 w-4" />
+              )}
+              {showingAll ? "Show Recent" : "Show All"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoadingInitialData ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : expenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No expense entries recorded yet.</p>
+          ) : displayedExpenses.length === 0 ? (
+             <p className="text-sm text-muted-foreground text-center py-4">
+              {showingAll ? "No expense entries found." : "No recent expense entries. Try 'Show All'."}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -133,7 +186,7 @@ export default function ExpensesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenses.map((expense) => (
+                {displayedExpenses.map((expense) => (
                   <TableRow key={expense.id}>
                     <TableCell className="font-medium">{expense.category}</TableCell>
                     <TableCell className="text-right">
