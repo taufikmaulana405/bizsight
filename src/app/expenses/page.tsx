@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ExpenseForm } from "@/components/forms/expense-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
@@ -33,15 +33,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function ExpensesPage() {
   const dataContext = useData();
   const { toast } = useToast();
 
-  const [displayedExpenses, setDisplayedExpenses] = useState<Expense[]>([]);
+  const [allFetchedExpenses, setAllFetchedExpenses] = useState<Expense[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
@@ -50,12 +52,31 @@ export default function ExpensesPage() {
 
   const [showingAll, setShowingAll] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const displayedExpensesSource = useMemo(() => {
+    return showingAll ? allFetchedExpenses : dataContext.expenses;
+  }, [showingAll, allFetchedExpenses, dataContext.expenses]);
+
+  const totalPages = useMemo(() => {
+    if (!showingAll || displayedExpensesSource.length === 0) return 1;
+    return Math.ceil(displayedExpensesSource.length / ITEMS_PER_PAGE);
+  }, [displayedExpensesSource, showingAll]);
+
+  const currentTableData = useMemo(() => {
+    if (!showingAll) {
+      return displayedExpensesSource; // Show recent items directly
+    }
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return displayedExpensesSource.slice(startIndex, endIndex);
+  }, [displayedExpensesSource, currentPage, showingAll]);
 
   useEffect(() => {
-    if (!showingAll && !dataContext.loading) {
-      setDisplayedExpenses(dataContext.expenses);
+    if (showingAll && currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
     }
-  }, [dataContext.expenses, showingAll, dataContext.loading]);
+  }, [totalPages, currentPage, showingAll]);
 
   const handleAddNew = () => {
     setEditingExpense(null);
@@ -81,7 +102,10 @@ export default function ExpensesPage() {
           description: `${expenseToDelete.category} expense was successfully deleted.`,
         });
         if (showingAll) {
-            handleToggleShowAll(); 
+            setLoadingAll(true);
+            const updatedAllExpenses = await dataContext.getAllExpenses();
+            setAllFetchedExpenses(updatedAllExpenses);
+            setLoadingAll(false);
         }
       } catch (error) {
         toast({
@@ -96,21 +120,28 @@ export default function ExpensesPage() {
     }
   };
 
-  const handleFormFinish = () => {
+  const handleFormFinish = async () => {
     setEditingExpense(null);
     setIsFormDialogOpen(false);
+    if (showingAll) {
+      setLoadingAll(true);
+      const updatedAllExpenses = await dataContext.getAllExpenses();
+      setAllFetchedExpenses(updatedAllExpenses);
+      setLoadingAll(false);
+    }
   };
 
   const handleToggleShowAll = async () => {
     if (showingAll) {
-      setDisplayedExpenses(dataContext.expenses);
       setShowingAll(false);
+      setCurrentPage(1);
     } else {
       setLoadingAll(true);
       try {
-        const allExpenses = await dataContext.getAllExpenses();
-        setDisplayedExpenses(allExpenses);
+        const allExpensesData = await dataContext.getAllExpenses();
+        setAllFetchedExpenses(allExpensesData);
         setShowingAll(true);
+        setCurrentPage(1);
       } catch (error) {
         toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
       } finally {
@@ -119,7 +150,19 @@ export default function ExpensesPage() {
     }
   };
 
-  const isLoadingInitialData = dataContext.loading && displayedExpenses.length === 0;
+  const isLoadingInitialData = dataContext.loading && !showingAll && dataContext.expenses.length === 0;
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -148,7 +191,9 @@ export default function ExpensesPage() {
             <div>
               <CardTitle>Existing Expenses</CardTitle>
               <CardDescription>
-                 {showingAll ? "Showing all expense entries." : "Showing most recent expense entries."}
+                 {showingAll 
+                    ? `Showing all expense entries. Page ${currentPage} of ${totalPages}.` 
+                    : "Showing most recent expense entries."}
                  {!showingAll && dataContext.expenses.length === 0 && !dataContext.loading && " No recent expense entries."}
               </CardDescription>
             </div>
@@ -171,40 +216,67 @@ export default function ExpensesPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : displayedExpenses.length === 0 ? (
+          ) : currentTableData.length === 0 ? (
              <p className="text-sm text-muted-foreground text-center py-4">
-              {showingAll ? "No expense entries found." : "No recent expense entries. Try 'Show All'."}
+              {showingAll ? "No expense entries found in 'Show All' view." : "No recent expense entries. Try 'Show All'."}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedExpenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="font-medium">{expense.category}</TableCell>
-                    <TableCell className="text-right">
-                      {expense.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                    </TableCell>
-                    <TableCell>{format(new Date(expense.date), "PPP")}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEdit(expense)} aria-label="Edit expense">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleDeleteInitiate(expense)} aria-label="Delete expense">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {currentTableData.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">{expense.category}</TableCell>
+                      <TableCell className="text-right">
+                        {expense.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                      </TableCell>
+                      <TableCell>{format(new Date(expense.date), "PPP")}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="outline" size="icon" onClick={() => handleEdit(expense)} aria-label="Edit expense">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleDeleteInitiate(expense)} aria-label="Delete expense">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {showingAll && displayedExpensesSource.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-end space-x-2 py-4">
+                   <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

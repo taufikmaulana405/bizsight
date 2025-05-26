@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { IncomeForm } from "@/components/forms/income-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
@@ -33,15 +33,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ListRestart, Loader2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function IncomePage() {
   const dataContext = useData();
   const { toast } = useToast();
 
-  const [displayedIncomes, setDisplayedIncomes] = useState<Income[]>([]);
+  const [allFetchedIncomes, setAllFetchedIncomes] = useState<Income[]>([]);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
   
@@ -50,12 +52,33 @@ export default function IncomePage() {
   
   const [showingAll, setShowingAll] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // displayedIncomes will either be the recent list or the full "allFetchedIncomes"
+  const displayedIncomesSource = useMemo(() => {
+    return showingAll ? allFetchedIncomes : dataContext.incomes;
+  }, [showingAll, allFetchedIncomes, dataContext.incomes]);
+
+  const totalPages = useMemo(() => {
+    if (!showingAll || displayedIncomesSource.length === 0) return 1;
+    return Math.ceil(displayedIncomesSource.length / ITEMS_PER_PAGE);
+  }, [displayedIncomesSource, showingAll]);
+
+  const currentTableData = useMemo(() => {
+    if (!showingAll) {
+      return displayedIncomesSource; // Show recent items directly
+    }
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return displayedIncomesSource.slice(startIndex, endIndex);
+  }, [displayedIncomesSource, currentPage, showingAll]);
 
   useEffect(() => {
-    if (!showingAll && !dataContext.loading) {
-      setDisplayedIncomes(dataContext.incomes);
+    if (showingAll && currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
     }
-  }, [dataContext.incomes, showingAll, dataContext.loading]);
+  }, [totalPages, currentPage, showingAll]);
+
 
   const handleAddNew = () => {
     setEditingIncome(null);
@@ -80,10 +103,11 @@ export default function IncomePage() {
           title: "Income Deleted",
           description: `${incomeToDelete.source} was successfully deleted.`,
         });
-        // If showing all, and the deleted item was in the displayed list, refetch all to update.
-        // Otherwise, the snapshot will handle the update for the recent list.
-        if (showingAll) {
-            handleToggleShowAll(); // This will refetch all or reset to recent based on current state
+        if (showingAll) { // If showing all, refetch all to update paginated data
+          setLoadingAll(true);
+          const updatedAllIncomes = await dataContext.getAllIncomes();
+          setAllFetchedIncomes(updatedAllIncomes);
+          setLoadingAll(false);
         }
       } catch (error) {
         toast({
@@ -98,27 +122,28 @@ export default function IncomePage() {
     }
   };
 
-  const handleFormFinish = () => {
+  const handleFormFinish = async () => {
     setEditingIncome(null);
     setIsFormDialogOpen(false);
-    // If showing all and an item was added/edited, it might be good to refresh the "all" list
-    // or rely on the user to toggle if strict data consistency is needed for the "all" view.
-    // For now, adding/editing an item will reflect in the "recent" list via snapshot.
-    // If "all" is shown, the change might not appear without toggling.
+    if (showingAll) { // If showing all, refetch to ensure new/updated item is in the paginated list
+        setLoadingAll(true);
+        const updatedAllIncomes = await dataContext.getAllIncomes();
+        setAllFetchedIncomes(updatedAllIncomes);
+        setLoadingAll(false);
+    }
   };
 
   const handleToggleShowAll = async () => {
     if (showingAll) {
-      // Switch to showing recent
-      setDisplayedIncomes(dataContext.incomes);
       setShowingAll(false);
+      setCurrentPage(1); // Reset to first page when switching to recent
     } else {
-      // Switch to showing all
       setLoadingAll(true);
       try {
-        const allIncomes = await dataContext.getAllIncomes();
-        setDisplayedIncomes(allIncomes);
+        const allIncomesData = await dataContext.getAllIncomes();
+        setAllFetchedIncomes(allIncomesData);
         setShowingAll(true);
+        setCurrentPage(1); // Reset to first page
       } catch (error) {
         toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
       } finally {
@@ -127,8 +152,19 @@ export default function IncomePage() {
     }
   };
   
-  const isLoadingInitialData = dataContext.loading && displayedIncomes.length === 0;
+  const isLoadingInitialData = dataContext.loading && !showingAll && dataContext.incomes.length === 0;
 
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -157,7 +193,9 @@ export default function IncomePage() {
             <div>
               <CardTitle>Existing Incomes</CardTitle>
               <CardDescription>
-                {showingAll ? "Showing all income entries." : "Showing most recent income entries."}
+                {showingAll 
+                  ? `Showing all income entries. Page ${currentPage} of ${totalPages}.` 
+                  : "Showing most recent income entries."}
                 {!showingAll && dataContext.incomes.length === 0 && !dataContext.loading && " No recent income entries."}
               </CardDescription>
             </div>
@@ -180,40 +218,67 @@ export default function IncomePage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : displayedIncomes.length === 0 ? (
+          ) : currentTableData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {showingAll ? "No income entries found." : "No recent income entries. Try 'Show All'."}
+              {showingAll ? "No income entries found in 'Show All' view." : "No recent income entries. Try 'Show All'."}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedIncomes.map((income) => (
-                  <TableRow key={income.id}>
-                    <TableCell className="font-medium">{income.source}</TableCell>
-                    <TableCell className="text-right">
-                      {income.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                    </TableCell>
-                    <TableCell>{format(new Date(income.date), "PPP")}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEdit(income)} aria-label="Edit income">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleDeleteInitiate(income)} aria-label="Delete income">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {currentTableData.map((income) => (
+                    <TableRow key={income.id}>
+                      <TableCell className="font-medium">{income.source}</TableCell>
+                      <TableCell className="text-right">
+                        {income.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                      </TableCell>
+                      <TableCell>{format(new Date(income.date), "PPP")}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="outline" size="icon" onClick={() => handleEdit(income)} aria-label="Edit income">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleDeleteInitiate(income)} aria-label="Delete income">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {showingAll && displayedIncomesSource.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-end space-x-2 py-4">
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
