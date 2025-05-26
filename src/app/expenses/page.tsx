@@ -74,11 +74,17 @@ export default function ExpensesPage() {
   }, [fetchAllExpenses]);
 
   const requestSort = (key: SortableExpenseKeys) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
+    if (sortConfig.key === key) {
+      // Current column is already being sorted, cycle through directions or turn off
+      if (sortConfig.direction === 'ascending') {
+        setSortConfig({ key, direction: 'descending' });
+      } else { // direction is 'descending'
+        setSortConfig({ key: null, direction: 'ascending' }); // Turn off sort for this column
+      }
+    } else {
+      // New column to sort, start with ascending
+      setSortConfig({ key, direction: 'ascending' });
     }
-    setSortConfig({ key, direction });
     setCurrentPage(1);
   };
 

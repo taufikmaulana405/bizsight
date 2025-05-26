@@ -76,16 +76,18 @@ export default function IncomePage() {
   }, [fetchAllIncomes]);
 
   const requestSort = (key: SortableIncomeKeys) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    } else if (sortConfig.key === key && sortConfig.direction === 'descending') {
-      // Optional: Third click could clear sort or cycle back to ascending. For now, just toggle.
-      // For simplicity, let's cycle back to ascending or clear
-      // setSortConfig({ key: null, direction: 'ascending' }); return;
+    if (sortConfig.key === key) {
+      // Current column is already being sorted, cycle through directions or turn off
+      if (sortConfig.direction === 'ascending') {
+        setSortConfig({ key, direction: 'descending' });
+      } else { // direction is 'descending'
+        setSortConfig({ key: null, direction: 'ascending' }); // Turn off sort for this column
+      }
+    } else {
+      // New column to sort, start with ascending
+      setSortConfig({ key, direction: 'ascending' });
     }
-    setSortConfig({ key, direction });
-    setCurrentPage(1); 
+    setCurrentPage(1);
   };
 
   const sortedIncomes = useMemo(() => {
