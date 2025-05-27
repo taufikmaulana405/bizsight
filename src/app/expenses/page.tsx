@@ -307,14 +307,6 @@ export default function ExpensesPage() {
           {isFilterSectionVisible && (
             <div className="mb-6 p-4 border rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Filter Expenses</h3>
-              {isInvalidAmountRange && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Max Amount cannot be less than Min Amount. The amount filter will not be applied.
-                  </AlertDescription>
-                </Alert>
-              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-end">
                 <div>
                   <Label htmlFor="search-category" className="text-sm font-medium text-gray-700 dark:text-gray-300">Search Category</Label>
@@ -410,6 +402,14 @@ export default function ExpensesPage() {
                   </Button>
                 </div>
               </div>
+              {isInvalidAmountRange && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Max Amount cannot be less than Min Amount. The amount filter will not be applied.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 
