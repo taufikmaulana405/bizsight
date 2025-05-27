@@ -131,7 +131,7 @@ export default function IncomePage() {
     const isValidMin = !isNaN(min);
     const isValidMax = !isNaN(max);
 
-    if (isValidMin && isValidMax && max < min) {
+    if (isInvalidAmountRange) {
       // Invalid range: max is less than min. Do not filter by amount.
       // UI warning is handled by isInvalidAmountRange state
     } else {
@@ -155,7 +155,7 @@ export default function IncomePage() {
     }
 
     return tempIncomes;
-  }, [allFetchedIncomes, searchTerm, minAmount, maxAmount, startDate, endDate]);
+  }, [allFetchedIncomes, searchTerm, minAmount, maxAmount, startDate, endDate, isInvalidAmountRange]);
 
   const sortedIncomes = useMemo(() => {
     let sortableItems = [...filteredIncomes];
@@ -306,7 +306,7 @@ export default function IncomePage() {
            {isFilterSectionVisible && (
             <div className="mb-6 p-4 border rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Filter Incomes</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end"> {/* Removed mb-4 */}
                 <div>
                   <Label htmlFor="search-source" className="text-sm font-medium text-gray-700 dark:text-gray-300">Search Source</Label>
                   <Input
