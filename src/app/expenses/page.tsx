@@ -357,7 +357,11 @@ export default function ExpensesPage() {
                         mode="single"
                         selected={startDate}
                         onSelect={setStartDate}
-                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                        disabled={(date) =>
+                          date > new Date() ||
+                          date < new Date("1900-01-01") ||
+                          (endDate && date > endDate)
+                        }
                         initialFocus
                       />
                     </PopoverContent>
