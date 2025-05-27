@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,6 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from '@/lib/utils';
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ITEMS_PER_PAGE = 10;
 type SortableIncomeKeys = 'source' | 'amount' | 'date';
@@ -133,7 +132,6 @@ export default function IncomePage() {
 
     if (isInvalidAmountRange) {
       // Invalid range: max is less than min. Do not filter by amount.
-      // UI warning is handled by isInvalidAmountRange state
     } else {
       if (isValidMin) {
         tempIncomes = tempIncomes.filter(income => income.amount >= min);
@@ -401,14 +399,6 @@ export default function IncomePage() {
                   </Button>
                 </div>
               </div>
-              {isInvalidAmountRange && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Max Amount cannot be less than Min Amount. The amount filter will not be applied.
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
           )}
 
