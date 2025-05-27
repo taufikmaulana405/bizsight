@@ -403,7 +403,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
               {isInvalidAmountRange && (
-                <Alert variant="destructive" className="mt-4">
+                <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     Max Amount cannot be less than Min Amount. The amount filter will not be applied.
