@@ -23,6 +23,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          storageKey="theme" // Explicitly set storageKey
         >
           <DataProvider>
             <AppShell>
