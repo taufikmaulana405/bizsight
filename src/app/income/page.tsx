@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ITEMS_PER_PAGE = 10;
 type SortableIncomeKeys = 'source' | 'amount' | 'date';
@@ -68,6 +69,13 @@ export default function IncomePage() {
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [isFilterSectionVisible, setIsFilterSectionVisible] = useState(false);
+
+  const isInvalidAmountRange = useMemo(() => {
+    const min = parseFloat(minAmount);
+    const max = parseFloat(maxAmount);
+    return !isNaN(min) && !isNaN(max) && max < min;
+  }, [minAmount, maxAmount]);
+
 
   const fetchAllIncomes = useCallback(async () => {
     setInitialLoading(true);
@@ -125,7 +133,7 @@ export default function IncomePage() {
 
     if (isValidMin && isValidMax && max < min) {
       // Invalid range: max is less than min. Do not filter by amount.
-      // console.warn("Max amount is less than min amount. Amount filter not applied.");
+      // UI warning is handled by isInvalidAmountRange state
     } else {
       if (isValidMin) {
         tempIncomes = tempIncomes.filter(income => income.amount >= min);
@@ -298,6 +306,14 @@ export default function IncomePage() {
            {isFilterSectionVisible && (
             <div className="mb-6 p-4 border rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Filter Incomes</h3>
+              {isInvalidAmountRange && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Max Amount cannot be less than Min Amount. The amount filter will not be applied.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-end">
                 <div>
                   <Label htmlFor="search-source" className="text-sm font-medium text-gray-700 dark:text-gray-300">Search Source</Label>
