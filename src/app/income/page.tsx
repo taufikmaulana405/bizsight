@@ -120,12 +120,19 @@ export default function IncomePage() {
 
     const min = parseFloat(minAmount);
     const max = parseFloat(maxAmount);
+    const isValidMin = !isNaN(min);
+    const isValidMax = !isNaN(max);
 
-    if (!isNaN(min)) {
-      tempIncomes = tempIncomes.filter(income => income.amount >= min);
-    }
-    if (!isNaN(max)) {
-      tempIncomes = tempIncomes.filter(income => income.amount <= max);
+    if (isValidMin && isValidMax && max < min) {
+      // Invalid range: max is less than min. Do not filter by amount.
+      // console.warn("Max amount is less than min amount. Amount filter not applied.");
+    } else {
+      if (isValidMin) {
+        tempIncomes = tempIncomes.filter(income => income.amount >= min);
+      }
+      if (isValidMax) {
+        tempIncomes = tempIncomes.filter(income => income.amount <= max);
+      }
     }
     
     if (startDate) {
@@ -484,5 +491,3 @@ export default function IncomePage() {
     </div>
   );
 }
-
-    

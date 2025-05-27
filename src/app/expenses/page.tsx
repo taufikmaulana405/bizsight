@@ -121,12 +121,19 @@ export default function ExpensesPage() {
 
     const min = parseFloat(minAmount);
     const max = parseFloat(maxAmount);
+    const isValidMin = !isNaN(min);
+    const isValidMax = !isNaN(max);
 
-    if (!isNaN(min)) {
-      tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
-    }
-    if (!isNaN(max)) {
-      tempExpenses = tempExpenses.filter(expense => expense.amount <= max);
+    if (isValidMin && isValidMax && max < min) {
+      // Invalid range: max is less than min. Do not filter by amount.
+      // console.warn("Max amount is less than min amount. Amount filter not applied.");
+    } else {
+      if (isValidMin) {
+        tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
+      }
+      if (isValidMax) {
+        tempExpenses = tempExpenses.filter(expense => expense.amount <= max);
+      }
     }
     
     if (startDate) {
@@ -485,5 +492,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-
-    
