@@ -321,7 +321,7 @@ export default function ExpensesPage() {
                     value={minAmount}
                     onChange={(e) => setMinAmount(e.target.value)}
                     step="0.01"
-                    className={cn("mt-1", isInvalidAmountRange && "border-destructive focus-visible:ring-destructive")}
+                    className={cn("mt-1", isInvalidAmountRange && "border-destructive")}
                   />
                 </div>
                 <div>
@@ -333,7 +333,7 @@ export default function ExpensesPage() {
                     value={maxAmount}
                     onChange={(e) => setMaxAmount(e.target.value)}
                     step="0.01"
-                    className={cn("mt-1", isInvalidAmountRange && "border-destructive focus-visible:ring-destructive")}
+                    className={cn("mt-1", isInvalidAmountRange && "border-destructive")}
                   />
                 </div>
                 <div>
