@@ -61,7 +61,6 @@ export default function ExpensesPage() {
 
   const [sortConfig, setSortConfig] = useState<{ key: SortableExpenseKeys | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
   
-  // Advanced search states
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
@@ -74,7 +73,6 @@ export default function ExpensesPage() {
     const max = parseFloat(maxAmount);
     return !isNaN(min) && !isNaN(max) && max < min;
   }, [minAmount, maxAmount]);
-
 
   const fetchAllExpenses = useCallback(async () => {
     setInitialLoading(true);
@@ -130,9 +128,7 @@ export default function ExpensesPage() {
     const isValidMin = !isNaN(min);
     const isValidMax = !isNaN(max);
 
-    if (isInvalidAmountRange) {
-      // Invalid range: max is less than min. Do not filter by amount.
-    } else {
+    if (!isInvalidAmountRange) { // Only apply amount filter if range is valid
       if (isValidMin) {
         tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
       }
@@ -325,7 +321,7 @@ export default function ExpensesPage() {
                     value={minAmount}
                     onChange={(e) => setMinAmount(e.target.value)}
                     step="0.01"
-                    className="mt-1"
+                    className={cn("mt-1", isInvalidAmountRange && "border-destructive focus-visible:ring-destructive")}
                   />
                 </div>
                 <div>
@@ -337,7 +333,7 @@ export default function ExpensesPage() {
                     value={maxAmount}
                     onChange={(e) => setMaxAmount(e.target.value)}
                     step="0.01"
-                    className="mt-1"
+                    className={cn("mt-1", isInvalidAmountRange && "border-destructive focus-visible:ring-destructive")}
                   />
                 </div>
                 <div>
