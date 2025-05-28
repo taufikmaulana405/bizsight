@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -294,7 +294,6 @@ export default function IncomePage() {
               ? "Loading income entries..."
               : `Showing income entries.`}
             {!initialLoading && allFetchedIncomes.length === 0 && " No income entries found."}
-            {!initialLoading && filteredIncomes.length === 0 && allFetchedIncomes.length > 0 && " No entries match your filters."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -499,3 +498,4 @@ export default function IncomePage() {
     </div>
   );
 }
+

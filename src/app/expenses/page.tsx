@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle, 
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -293,7 +293,6 @@ export default function ExpensesPage() {
               ? "Loading expense entries..."
               : `Showing expense entries.`}
             {!initialLoading && allFetchedExpenses.length === 0 && " No expense entries found."}
-            {!initialLoading && filteredExpenses.length === 0 && allFetchedExpenses.length > 0 && " No entries match your filters."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -498,3 +497,4 @@ export default function ExpensesPage() {
     </div>
   );
 }
+
