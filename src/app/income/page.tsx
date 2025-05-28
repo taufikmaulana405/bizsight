@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -129,15 +129,15 @@ export default function IncomePage() {
     const isValidMin = !isNaN(min);
     const isValidMax = !isNaN(max);
 
-    if (!isInvalidAmountRange) { // Only apply amount filter if range is valid
-      if (isValidMin) {
-        tempIncomes = tempIncomes.filter(income => income.amount >= min);
-      }
-      if (isValidMax) {
-        tempIncomes = tempIncomes.filter(income => income.amount <= max);
-      }
+    // Apply amount filter regardless of isInvalidAmountRange for strict filtering
+    // An invalid range (max < min) will naturally result in 0 items for this criterion
+    if (isValidMin) {
+      tempIncomes = tempIncomes.filter(income => income.amount >= min);
     }
-    
+    if (isValidMax) {
+      tempIncomes = tempIncomes.filter(income => income.amount <= max);
+    }
+        
     if (startDate) {
       const startOfDay = new Date(startDate);
       startOfDay.setHours(0, 0, 0, 0);
@@ -150,7 +150,7 @@ export default function IncomePage() {
     }
 
     return tempIncomes;
-  }, [allFetchedIncomes, searchTerm, minAmount, maxAmount, startDate, endDate, isInvalidAmountRange]);
+  }, [allFetchedIncomes, searchTerm, minAmount, maxAmount, startDate, endDate]); // isInvalidAmountRange removed as a direct dependency for filtering logic
 
   const sortedIncomes = useMemo(() => {
     let sortableItems = [...filteredIncomes];
@@ -498,4 +498,3 @@ export default function IncomePage() {
     </div>
   );
 }
-

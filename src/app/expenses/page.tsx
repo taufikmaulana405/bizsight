@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle, 
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -128,13 +128,13 @@ export default function ExpensesPage() {
     const isValidMin = !isNaN(min);
     const isValidMax = !isNaN(max);
 
-    if (!isInvalidAmountRange) { // Only apply amount filter if range is valid
-      if (isValidMin) {
-        tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
-      }
-      if (isValidMax) {
-        tempExpenses = tempExpenses.filter(expense => expense.amount <= max);
-      }
+    // Apply amount filter regardless of isInvalidAmountRange for strict filtering
+    // An invalid range (max < min) will naturally result in 0 items for this criterion
+    if (isValidMin) {
+      tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
+    }
+    if (isValidMax) {
+      tempExpenses = tempExpenses.filter(expense => expense.amount <= max);
     }
     
     if (startDate) {
@@ -149,7 +149,7 @@ export default function ExpensesPage() {
     }
 
     return tempExpenses;
-  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, startDate, endDate, isInvalidAmountRange]);
+  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, startDate, endDate]); // isInvalidAmountRange removed as a direct dependency for filtering logic
 
   const sortedExpenses = useMemo(() => {
     let sortableItems = [...filteredExpenses];
@@ -497,4 +497,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-
