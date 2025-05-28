@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { IncomeForm } from "@/components/forms/income-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useData } from '@/contexts/data-context';
-import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast"; // Removed toast for now
 import type { Income } from '@/lib/types';
 import {
   Table,
@@ -47,7 +47,7 @@ type SortableIncomeKeys = 'source' | 'amount' | 'date';
 
 export default function IncomePage() {
   const dataContext = useData();
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Removed toast for now
 
   const [allFetchedIncomes, setAllFetchedIncomes] = useState<Income[]>([]);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
@@ -65,38 +65,32 @@ export default function IncomePage() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
-  const [minAmount, setMinAmount] = useState('');
-  const [maxAmount, setMaxAmount] = useState('');
-  const [lastValidMinAmount, setLastValidMinAmount] = useState('');
-  const [lastValidMaxAmount, setLastValidMaxAmount] = useState('');
+  const [minAmount, setMinAmount] = useState(''); // From input
+  const [maxAmount, setMaxAmount] = useState(''); // From input
+  const [lastValidMinAmount, setLastValidMinAmount] = useState(''); // Stores last valid min for filtering
+  const [lastValidMaxAmount, setLastValidMaxAmount] = useState(''); // Stores last valid max for filtering
   
   const [isFilterSectionVisible, setIsFilterSectionVisible] = useState(false);
 
+  // Calculate if the *current input values* form an invalid range for UI styling
   const isInvalidAmountRange = useMemo(() => {
     const min = parseFloat(minAmount);
     const max = parseFloat(maxAmount);
     return !isNaN(min) && !isNaN(max) && max < min;
   }, [minAmount, maxAmount]);
 
+  // Effect to update lastValidMinAmount and lastValidMaxAmount
   useEffect(() => {
-    const min = parseFloat(minAmount);
-    const max = parseFloat(maxAmount);
-    const isValidMin = !isNaN(min);
-    const isValidMax = !isNaN(max);
+    const currentMin = parseFloat(minAmount);
+    const currentMax = parseFloat(maxAmount);
+    const isValidCurrentMin = !isNaN(currentMin);
+    const isValidCurrentMax = !isNaN(currentMax);
 
-    if (isValidMin && isValidMax && max < min) {
-      toast({
-        title: "Invalid Amount Range",
-        description: "Max Amount cannot be less than Min Amount. Reverted to the previous valid range.",
-        variant: "default",
-      });
-      setMinAmount(lastValidMinAmount);
-      setMaxAmount(lastValidMaxAmount);
-    } else {
+    if (!(isValidCurrentMin && isValidCurrentMax && currentMax < currentMin)) {
       setLastValidMinAmount(minAmount);
       setLastValidMaxAmount(maxAmount);
     }
-  }, [minAmount, maxAmount, lastValidMinAmount, lastValidMaxAmount, setMinAmount, setMaxAmount, toast]);
+  }, [minAmount, maxAmount]);
 
 
   const fetchAllIncomes = useCallback(async () => {
@@ -105,11 +99,12 @@ export default function IncomePage() {
       const allIncomesData = await dataContext.getAllIncomes();
       setAllFetchedIncomes(allIncomesData);
     } catch (error) {
-      toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
+      // toast({ title: "Error", description: "Could not load all incomes.", variant: "destructive" });
+      console.error("Could not load all incomes:", error);
     } finally {
       setInitialLoading(false);
     }
-  }, [dataContext, toast]);
+  }, [dataContext]);
 
   useEffect(() => {
     fetchAllIncomes();
@@ -117,7 +112,7 @@ export default function IncomePage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortConfig, startDate, endDate, minAmount, maxAmount]);
+  }, [searchTerm, sortConfig, startDate, endDate, minAmount, maxAmount]); // Reset page when any filter input changes
 
   const requestSort = (key: SortableIncomeKeys) => {
     if (sortConfig.key === key) {
@@ -150,16 +145,32 @@ export default function IncomePage() {
       );
     }
 
-    const min = parseFloat(minAmount);
-    const max = parseFloat(maxAmount);
-    const isValidMin = !isNaN(min);
-    const isValidMax = !isNaN(max);
-    
-    if (isValidMin) {
-      tempIncomes = tempIncomes.filter(income => income.amount >= min);
+    // Determine which min/max values to use for filtering
+    const currentInputMin = parseFloat(minAmount);
+    const currentInputMax = parseFloat(maxAmount);
+    const isValidCurrentInputMin = !isNaN(currentInputMin);
+    const isValidCurrentInputMax = !isNaN(currentInputMax);
+
+    let minToUseForFilter: number | undefined;
+    let maxToUseForFilter: number | undefined;
+
+    if (isValidCurrentInputMin && isValidCurrentInputMax && currentInputMax < currentInputMin) {
+      // Current input is an invalid range, use last valid values for filtering
+      const lastMin = parseFloat(lastValidMinAmount);
+      const lastMax = parseFloat(lastValidMaxAmount);
+      minToUseForFilter = !isNaN(lastMin) ? lastMin : undefined;
+      maxToUseForFilter = !isNaN(lastMax) ? lastMax : undefined;
+    } else {
+      // Current input is valid or partially empty, use current values for filtering
+      minToUseForFilter = isValidCurrentInputMin ? currentInputMin : undefined;
+      maxToUseForFilter = isValidCurrentInputMax ? currentInputMax : undefined;
     }
-    if (isValidMax) {
-      tempIncomes = tempIncomes.filter(income => income.amount <= max);
+        
+    if (minToUseForFilter !== undefined) {
+      tempIncomes = tempIncomes.filter(income => income.amount >= minToUseForFilter!);
+    }
+    if (maxToUseForFilter !== undefined) {
+      tempIncomes = tempIncomes.filter(income => income.amount <= maxToUseForFilter!);
     }
         
     if (startDate) {
@@ -174,7 +185,7 @@ export default function IncomePage() {
     }
 
     return tempIncomes;
-  }, [allFetchedIncomes, searchTerm, minAmount, maxAmount, startDate, endDate]); 
+  }, [allFetchedIncomes, searchTerm, minAmount, maxAmount, lastValidMinAmount, lastValidMaxAmount, startDate, endDate]); 
 
   const sortedIncomes = useMemo(() => {
     let sortableItems = [...filteredIncomes];
@@ -236,17 +247,18 @@ export default function IncomePage() {
     if (incomeToDelete) {
       try {
         await dataContext.deleteIncome(incomeToDelete.id);
-        toast({
-          title: "Income Deleted",
-          description: `${incomeToDelete.source} was successfully deleted.`,
-        });
+        // toast({
+        //   title: "Income Deleted",
+        //   description: `${incomeToDelete.source} was successfully deleted.`,
+        // });
         await fetchAllIncomes(); 
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Could not delete income. Please try again.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Error",
+        //   description: "Could not delete income. Please try again.",
+        //   variant: "destructive",
+        // });
+        console.error("Could not delete income:", error);
       } finally {
         setIncomeToDelete(null);
         setIsDeleteDialogOpen(false);
@@ -522,3 +534,4 @@ export default function IncomePage() {
     </div>
   );
 }
+

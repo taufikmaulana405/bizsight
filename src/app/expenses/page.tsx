@@ -47,7 +47,7 @@ type SortableExpenseKeys = 'category' | 'amount' | 'date';
 
 export default function ExpensesPage() {
   const dataContext = useData();
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Removed toast for now, as it's not used with this logic
 
   const [allFetchedExpenses, setAllFetchedExpenses] = useState<Expense[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -65,40 +65,35 @@ export default function ExpensesPage() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   
-  const [minAmount, setMinAmount] = useState('');
-  const [maxAmount, setMaxAmount] = useState('');
-  const [lastValidMinAmount, setLastValidMinAmount] = useState('');
-  const [lastValidMaxAmount, setLastValidMaxAmount] = useState('');
+  const [minAmount, setMinAmount] = useState(''); // From input
+  const [maxAmount, setMaxAmount] = useState(''); // From input
+  const [lastValidMinAmount, setLastValidMinAmount] = useState(''); // Stores last valid min for filtering
+  const [lastValidMaxAmount, setLastValidMaxAmount] = useState(''); // Stores last valid max for filtering
 
   const [isFilterSectionVisible, setIsFilterSectionVisible] = useState(false);
 
+  // Calculate if the *current input values* form an invalid range for UI styling
   const isInvalidAmountRange = useMemo(() => {
     const min = parseFloat(minAmount);
     const max = parseFloat(maxAmount);
     return !isNaN(min) && !isNaN(max) && max < min;
   }, [minAmount, maxAmount]);
 
+  // Effect to update lastValidMinAmount and lastValidMaxAmount
   useEffect(() => {
-    const min = parseFloat(minAmount);
-    const max = parseFloat(maxAmount);
-    const isValidMin = !isNaN(min);
-    const isValidMax = !isNaN(max);
+    const currentMin = parseFloat(minAmount);
+    const currentMax = parseFloat(maxAmount);
+    const isValidCurrentMin = !isNaN(currentMin);
+    const isValidCurrentMax = !isNaN(currentMax);
 
-    if (isValidMin && isValidMax && max < min) {
-      toast({
-        title: "Invalid Amount Range",
-        description: "Max Amount cannot be less than Min Amount. Reverted to the previous valid range.",
-        variant: "default", // Using default, you might want a "warning" variant if available
-      });
-      setMinAmount(lastValidMinAmount);
-      setMaxAmount(lastValidMaxAmount);
-    } else {
-      // Update last valid amounts if current range is not invalid
-      // This allows clearing fields or having one field empty without reverting
+    // If the current input range is NOT invalid (i.e., it's valid, or one/both fields are empty/non-numeric),
+    // then update lastValidMin/MaxAmount to reflect the current state.
+    if (!(isValidCurrentMin && isValidCurrentMax && currentMax < currentMin)) {
       setLastValidMinAmount(minAmount);
       setLastValidMaxAmount(maxAmount);
     }
-  }, [minAmount, maxAmount, lastValidMinAmount, lastValidMaxAmount, setMinAmount, setMaxAmount, toast]);
+    // If current input is invalid, lastValidMin/MaxAmount retain their previous (valid) values.
+  }, [minAmount, maxAmount]);
 
 
   const fetchAllExpenses = useCallback(async () => {
@@ -107,11 +102,12 @@ export default function ExpensesPage() {
       const allExpensesData = await dataContext.getAllExpenses();
       setAllFetchedExpenses(allExpensesData);
     } catch (error) {
-      toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" });
+      // toast({ title: "Error", description: "Could not load all expenses.", variant: "destructive" }); // Use toast from context if needed
+      console.error("Could not load all expenses:", error);
     } finally {
       setInitialLoading(false);
     }
-  }, [dataContext, toast]);
+  }, [dataContext]);
 
   useEffect(() => {
     fetchAllExpenses();
@@ -119,7 +115,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortConfig, startDate, endDate, minAmount, maxAmount]);
+  }, [searchTerm, sortConfig, startDate, endDate, minAmount, maxAmount]); // Reset page when any filter input changes
 
   const requestSort = (key: SortableExpenseKeys) => {
     if (sortConfig.key === key) {
@@ -153,17 +149,32 @@ export default function ExpensesPage() {
       );
     }
 
-    const min = parseFloat(minAmount);
-    const max = parseFloat(maxAmount);
-    const isValidMin = !isNaN(min);
-    const isValidMax = !isNaN(max);
-    
-    // Apply amount filter strictly based on current input values
-    if (isValidMin) {
-      tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
+    // Determine which min/max values to use for filtering
+    const currentInputMin = parseFloat(minAmount);
+    const currentInputMax = parseFloat(maxAmount);
+    const isValidCurrentInputMin = !isNaN(currentInputMin);
+    const isValidCurrentInputMax = !isNaN(currentInputMax);
+
+    let minToUseForFilter: number | undefined;
+    let maxToUseForFilter: number | undefined;
+
+    if (isValidCurrentInputMin && isValidCurrentInputMax && currentInputMax < currentInputMin) {
+      // Current input is an invalid range, use last valid values for filtering
+      const lastMin = parseFloat(lastValidMinAmount);
+      const lastMax = parseFloat(lastValidMaxAmount);
+      minToUseForFilter = !isNaN(lastMin) ? lastMin : undefined;
+      maxToUseForFilter = !isNaN(lastMax) ? lastMax : undefined;
+    } else {
+      // Current input is valid or partially empty, use current values for filtering
+      minToUseForFilter = isValidCurrentInputMin ? currentInputMin : undefined;
+      maxToUseForFilter = isValidCurrentInputMax ? currentInputMax : undefined;
     }
-    if (isValidMax) {
-      tempExpenses = tempExpenses.filter(expense => expense.amount <= max);
+    
+    if (minToUseForFilter !== undefined) {
+      tempExpenses = tempExpenses.filter(expense => expense.amount >= minToUseForFilter!);
+    }
+    if (maxToUseForFilter !== undefined) {
+      tempExpenses = tempExpenses.filter(expense => expense.amount <= maxToUseForFilter!);
     }
     
     if (startDate) {
@@ -178,7 +189,7 @@ export default function ExpensesPage() {
     }
 
     return tempExpenses;
-  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, startDate, endDate]);
+  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, lastValidMinAmount, lastValidMaxAmount, startDate, endDate]);
 
   const sortedExpenses = useMemo(() => {
     let sortableItems = [...filteredExpenses];
@@ -240,17 +251,18 @@ export default function ExpensesPage() {
     if (expenseToDelete) {
       try {
         await dataContext.deleteExpense(expenseToDelete.id);
-        toast({
-          title: "Expense Deleted",
-          description: `${expenseToDelete.category} expense was successfully deleted.`,
-        });
+        // toast({
+        //   title: "Expense Deleted",
+        //   description: `${expenseToDelete.category} expense was successfully deleted.`,
+        // });
         await fetchAllExpenses(); 
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Could not delete expense. Please try again.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Error",
+        //   description: "Could not delete expense. Please try again.",
+        //   variant: "destructive",
+        // });
+        console.error("Could not delete expense:", error);
       } finally {
         setExpenseToDelete(null);
         setIsDeleteDialogOpen(false);
@@ -526,3 +538,4 @@ export default function ExpensesPage() {
     </div>
   );
 }
+
