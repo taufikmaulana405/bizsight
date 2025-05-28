@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as ConfirmDialogTitle, 
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, CalendarIcon, FilterX, Filter, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
@@ -64,8 +64,12 @@ export default function ExpensesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [lastValidMinAmount, setLastValidMinAmount] = useState('');
+  const [lastValidMaxAmount, setLastValidMaxAmount] = useState('');
+
   const [isFilterSectionVisible, setIsFilterSectionVisible] = useState(false);
 
   const isInvalidAmountRange = useMemo(() => {
@@ -73,6 +77,29 @@ export default function ExpensesPage() {
     const max = parseFloat(maxAmount);
     return !isNaN(min) && !isNaN(max) && max < min;
   }, [minAmount, maxAmount]);
+
+  useEffect(() => {
+    const min = parseFloat(minAmount);
+    const max = parseFloat(maxAmount);
+    const isValidMin = !isNaN(min);
+    const isValidMax = !isNaN(max);
+
+    if (isValidMin && isValidMax && max < min) {
+      toast({
+        title: "Invalid Amount Range",
+        description: "Max Amount cannot be less than Min Amount. Reverted to the previous valid range.",
+        variant: "default", // Using default, you might want a "warning" variant if available
+      });
+      setMinAmount(lastValidMinAmount);
+      setMaxAmount(lastValidMaxAmount);
+    } else {
+      // Update last valid amounts if current range is not invalid
+      // This allows clearing fields or having one field empty without reverting
+      setLastValidMinAmount(minAmount);
+      setLastValidMaxAmount(maxAmount);
+    }
+  }, [minAmount, maxAmount, lastValidMinAmount, lastValidMaxAmount, setMinAmount, setMaxAmount, toast]);
+
 
   const fetchAllExpenses = useCallback(async () => {
     setInitialLoading(true);
@@ -112,6 +139,9 @@ export default function ExpensesPage() {
     setMaxAmount('');
     setStartDate(undefined);
     setEndDate(undefined);
+    // Also reset last valid amounts on clear
+    setLastValidMinAmount('');
+    setLastValidMaxAmount('');
   };
 
   const filteredExpenses = useMemo(() => {
@@ -127,9 +157,8 @@ export default function ExpensesPage() {
     const max = parseFloat(maxAmount);
     const isValidMin = !isNaN(min);
     const isValidMax = !isNaN(max);
-
-    // Apply amount filter regardless of isInvalidAmountRange for strict filtering
-    // An invalid range (max < min) will naturally result in 0 items for this criterion
+    
+    // Apply amount filter strictly based on current input values
     if (isValidMin) {
       tempExpenses = tempExpenses.filter(expense => expense.amount >= min);
     }
@@ -149,7 +178,7 @@ export default function ExpensesPage() {
     }
 
     return tempExpenses;
-  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, startDate, endDate]); // isInvalidAmountRange removed as a direct dependency for filtering logic
+  }, [allFetchedExpenses, searchTerm, minAmount, maxAmount, startDate, endDate]);
 
   const sortedExpenses = useMemo(() => {
     let sortableItems = [...filteredExpenses];
